@@ -248,6 +248,13 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
 .kretanje{display:flex; gap:.6rem; padding:.35rem .9rem .5rem}
 .kretanje .gumb{flex:1; font-size:1.3rem; font-weight:800; border:none; min-height:74px}
 .gumb--nazad{background:var(--nazad); color:var(--nazad-tekst)}
+/* POMOZI namjerno NIJE u boji. Crveno, ljubicasto, oker, plavo i zeleno vec
+   imaju svoja znacenja i peta bi ih boja pocela razvodnjavati. Ovaj se gumb
+   razaznaje po mjestu (uvijek u sredini), znaku i natpisu - po istom nacelu
+   po kojem se i ostali razlikuju kad se boje ne raspoznaju. */
+.gumb--pomoc{background:var(--papir); color:var(--tinta);
+  border:3px solid var(--tinta); font-size:1.15rem}
+.gumb--pomoc:active{background:var(--tinta); color:var(--papir)}
 .gumb--dalje{background:var(--dalje); color:var(--dalje-tekst)}
 .kretanje .gumb:active{filter:brightness(.92)}
 
@@ -462,6 +469,7 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
 
     <div class="kretanje">
       <button class="gumb gumb--nazad" id="gNazad">◀ NAZAD</button>
+      <button class="gumb gumb--pomoc" id="gPomoc">? POMOZI</button>
       <button class="gumb gumb--dalje" id="gDalje">DALJE ▶</button>
     </div>
 
@@ -1252,6 +1260,7 @@ const popunjen = p => celijePojma(p).every(([r, c]) => upisanoNa(r, c) !== "");
 /* Pamtimo pojam I upisana slova. Da pamtimo samo pojam, ispravak krivog
    odgovora prošao bi u tišini - a baš tada potvrda najviše treba. */
 let zadnjiJavljen = "";
+let promasaja = 0;          // uzastopni promasaji na istom pojmu
 const upisanoUPojmu = p => celijePojma(p).map(([r, c]) => upisanoNa(r, c) || "·").join("");
 
 function provjeriNaglas(){
@@ -1264,7 +1273,9 @@ function provjeriNaglas(){
   if (rijesen(p)){
     bljesni("tocno");
     poruka("Točno — " + p.rijec, false);
-    izgovori("Točno. " + p.rijec.split("").join(", "), { visina: 1.15 });
+    promasaja = 0;
+    izgovori("Točno. " + p.rijec.split("").join(", ") + " " + recenicaNapretka(),
+             { visina: 1.15 });
     // nakon pohvale sam prelazi na prvi neriješeni pojam
     setTimeout(() => {
       const sljedeci = K.pojmovi.findIndex((q, i) => i !== iPojam && !rijesen(q));
@@ -1276,8 +1287,69 @@ function provjeriNaglas(){
   } else {
     bljesni("netocno");
     poruka("Nije točno");
-    izgovori("Nije točno.", { visina: 0.98 });   // kratko - boja već sve kaže
+    promasaja++;
+    /* Prvi put samo kratko - boja već sve kaže. Tek nakon drugog promašaja
+       spomenemo pomoć, i to gdje je gumb, jer dida ga ne vidi. Ranije bi
+       zvučalo kao da ga potcjenjujemo. */
+    const josNijePitao = !K.pomoci || !K.pomoci[iPojam];
+    izgovori(promasaja >= 2 && josNijePitao
+      ? "Nije točno. Ako si zapeo, pritisni srednji gumb, POMOZI."
+      : "Nije točno.", { visina: 0.98 });
   }
+}
+
+/* ============ napredak naglas ============ */
+/* Postotak, brojač i crtica postoje samo za oči - a dida ih ne vidi, zato mu
+   i opis čitamo umjesto da ga ispišemo. Bez ovoga nikad ne sazna koliko mu
+   je ostalo. Brojke, ne postoci: "još sedam" se osjeti, "64 posto" ne. */
+function recenicaNapretka(){
+  const ukupno = K.pojmovi.length;
+  const gotovih = K.pojmovi.filter(rijesen).length;
+  const ostalo = ukupno - gotovih;
+  if (ostalo <= 0) return "";                    // kraj ima svoju pohvalu
+  if (ostalo === 1) return "Još samo jedna.";
+  if (gotovih * 2 === ukupno) return "Pola je gotovo.";
+  return "Još " + ostalo + ".";
+}
+
+/* ============ pomoc u stupnjevima ============ */
+/* Prije ovoga pomoći nije bilo nikakve: tko zapne, može samo pogađati ili
+   zatvoriti aplikaciju - a tu većina i odustane. Ide u tri stupnja da nikad
+   ne bude slijepa ulica, ali da se rješenje ne dobije odmah na dar.
+   Broji se po pojmu, putuje uz spremljenu krizaljku (K), pa kasnije moze
+   ulaziti i u turnir. */
+const REDNI = ["Prvo","Drugo","Treće","Četvrto","Peto","Šesto","Sedmo",
+               "Osmo","Deveto","Deseto","Jedanaesto","Dvanaesto"];
+
+function pomozi(){
+  if (!K || !K.pojmovi) return;
+  const p = K.pojmovi[iPojam];
+  const celije = celijePojma(p);
+  if (!K.pomoci) K.pomoci = {};
+  const razina = (K.pomoci[iPojam] || 0) + 1;
+  K.pomoci[iPojam] = razina;
+
+  if (razina >= 3){
+    /* Treći put znači da je stvarno stao. Upišemo riječ i idemo dalje bez
+       ceremonije - još pitanja u toj situaciji samo ponižava. */
+    celije.forEach(([r, c], i) => { K.upisano[k(r, c)] = p.rijec[i]; });
+    iSlovo = celije.length - 1;
+    zadnjiJavljen = "";
+    promasaja = 0;
+    spremi(); crtajPojam();
+    poruka("Riječ je " + p.rijec, false);
+    izgovori("Riječ je " + p.rijec.split("").join(", ") + ".");
+    return;
+  }
+
+  // prvo slovo koje jos nije na svom mjestu
+  let i = celije.findIndex(([r, c], j) => upisanoNa(r, c) !== p.rijec[j]);
+  if (i < 0) i = 0;
+  iSlovo = i;
+  spremi(); crtajPojam();
+  const redni = REDNI[i] || (i + 1) + ".";
+  poruka(redni + " slovo je " + p.rijec[i], false);
+  izgovori(redni + " slovo je " + imeSlova(p.rijec[i]) + ".");
 }
 
 /* ============ izgovor pojedinog slova ============ */
@@ -1336,6 +1408,7 @@ function pomakni(smjer){
   iPojam = (iPojam + smjer + K.pojmovi.length) % K.pojmovi.length;
   iSlovo = 0;
   zadnjiJavljen = "";          // novi pojam - kreni s čistim stanjem
+  promasaja = 0;
   spremi();
   crtajPojam();
   izgovori(recenicaPojma(K.pojmovi[iPojam]));
@@ -1461,6 +1534,7 @@ oznaciSlova();
 /* označi brzinu koja je zapamćena od prošli put */
 [...$("#izborBrzine").children].forEach(x =>
   x.setAttribute("aria-pressed", String(parseFloat(x.dataset.b) === brzinaGovora)));
+$("#gPomoc").addEventListener("click", pomozi);
 $("#gDalje").addEventListener("click", () => pomakni(1));
 $("#gNazad").addEventListener("click", () => pomakni(-1));
 $("#gKuci").addEventListener("click", () => { spremi(); osvjeziPocetak(); prikaziZaslon("zPocetak"); });
