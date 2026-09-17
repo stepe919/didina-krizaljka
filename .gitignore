@@ -1,0 +1,14 @@
+# osobni podaci
+kontakt.txt
+
+# ovisnosti
+node_modules/
+__pycache__/
+*.pyc
+
+# izlazi koji se generiraju
+krizaljka*.pdf
+krizaljka_*.json
+linkovi.txt
+povijest.json
+pregled_*.png

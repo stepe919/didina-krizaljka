@@ -1,0 +1,1265 @@
+<title>Didina križaljka</title>
+<meta name="theme-color" content="#0B5FB0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Križaljka">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="ikona-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bitter:wght@600;800&display=swap">
+
+<style>
+/* ==========================================================================
+   PALETA - svaka boja znači TOČNO JEDNU stvar.
+
+     crveno     SLUŠAJ    aplikacija priča tebi
+     ljubičasto GOVORI    ti pričaš aplikaciji
+     oker       NAZAD     korak unatrag
+     plavo      DALJE     korak naprijed  (i polje u kojem si sada)
+     zeleno     RIJEŠENO  nikad nije gumb - samo "gotovo"
+
+   Zašto baš ove: starije oko slabije razlikuje susjedne tonove, pa su hue
+   razmaknuti po krugu (crveno-ljubičasto-oker-plavo). Uz to se svaki gumb
+   razlikuje i po POLOŽAJU, IKONI i TEKSTU - tko ne razaznaje boje, i dalje
+   zna koji je koji.
+   ========================================================================== */
+:root{
+  --papir:      #FAFAF7;   /* topli off-white, ton novinskog papira */
+  --papir-2:    #EFEFE9;   /* uvučena površina */
+  --tinta:      #14161A;   /* skoro crno, blago hladno */
+  --tinta-tiha: #565B63;
+  --linija:     #C9C9C0;
+  --naglasak:   #0B5FB0;   /* plava: "tu si sada" */
+  --naglasak-t: #E4EEF9;
+  --naglasak-tekst: #FFFFFF;
+  --rijeseno:   #15803D;   /* zelena: ISKLJUČIVO "gotovo" */
+  --rijeseno-t: #E1F1E6;
+  --sjena:      rgba(20,22,26,.16);
+  --polje-w:    64px;
+
+  /* Namjerno različite SVJETLINE, ne samo tonovi - od najtamnijeg prema
+     najsvjetlijem: SLUŠAJ, GOVORI, DALJE, NAZAD. Tko slabo razaznaje boje,
+     razlikuje ih po tome koliko su tamni. */
+  --sluh:       #A61B12;  --sluh-tekst:  #FFFFFF;   /* SLUŠAJ - najtamniji */
+  --govor:      #6D28D9;  --govor-tekst: #FFFFFF;   /* GOVORI            */
+  --dalje:      #1D6FD0;  --dalje-tekst: #FFFFFF;   /* DALJE             */
+  --nazad:      #F0A81E;  --nazad-tekst: #2E1C02;   /* NAZAD - najsvjetliji */
+  --bljesak-tocno:   rgba(21,128,61,.30);
+  --bljesak-netocno: rgba(166,27,18,.32);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --papir:      #0E1013;
+    --papir-2:    #1B1F24;
+    --tinta:      #F3F4F1;
+    --tinta-tiha: #A2A8B0;
+    --linija:     #3A4048;
+    --naglasak:   #6FB3F2;
+    --naglasak-t: #16293C;
+    --rijeseno:   #4ADE80;
+    --rijeseno-t: #14301F;
+    --sjena:      rgba(0,0,0,.5);
+    --naglasak-tekst: #06203A;   /* na svijetloplavoj bijelo ne bi bilo čitljivo */
+    /* u tami idu svjetlije s tamnim tekstom, ali i dalje stepenasto */
+    --sluh:       #E8756B;  --sluh-tekst:  #2A0A08;
+    --govor:      #B98BFF;  --govor-tekst: #240B4D;
+    --dalje:      #6DB4F5;  --dalje-tekst: #05203A;
+    --nazad:      #FBBF24;  --nazad-tekst: #3A2206;
+    --bljesak-tocno:   rgba(74,222,128,.26);
+    --bljesak-netocno: rgba(232,117,107,.30);
+  }
+}
+:root[data-theme="dark"]{
+  --papir:#0E1013; --papir-2:#1B1F24; --tinta:#F3F4F1; --tinta-tiha:#A2A8B0;
+  --linija:#3A4048; --naglasak:#6FB3F2; --naglasak-t:#16293C;
+  --naglasak-tekst:#06203A;
+  --rijeseno:#4ADE80; --rijeseno-t:#14301F; --sjena:rgba(0,0,0,.5);
+  --sluh:#E8756B; --sluh-tekst:#2A0A08;
+  --govor:#B98BFF; --govor-tekst:#240B4D;
+  --dalje:#6DB4F5; --dalje-tekst:#05203A;
+  --nazad:#FBBF24; --nazad-tekst:#3A2206;
+  --bljesak-tocno:rgba(74,222,128,.26); --bljesak-netocno:rgba(232,117,107,.30);
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--papir); color:var(--tinta);
+  font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:19px; line-height:1.45;
+  -webkit-text-size-adjust:100%;
+}
+button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent}
+:focus-visible{outline:4px solid var(--naglasak); outline-offset:3px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+
+#app{max-width:560px; margin:0 auto; min-height:100%; display:flex; flex-direction:column}
+.zaslon{flex:1; display:flex; flex-direction:column; min-height:0}
+[hidden]{display:none!important}
+
+/* ---------- veliki gumbi ---------- */
+.gumb{
+  display:flex; align-items:center; justify-content:center; gap:.5rem;
+  min-height:72px; padding:0 1.1rem; width:100%;
+  background:var(--papir-2); color:var(--tinta);
+  border:2px solid var(--linija); border-radius:14px;
+  font-weight:700; font-size:1.18rem; letter-spacing:.01em;
+}
+.gumb:active{transform:translateY(1px)}
+.gumb--glavni{background:var(--naglasak); border-color:var(--naglasak); color:var(--naglasak-tekst)}
+.gumb--glavni:active{filter:brightness(.94)}
+
+/* ---------- početni zaslon ---------- */
+.pocetak{padding:2rem 1.15rem 1.5rem; display:flex; flex-direction:column; gap:1.5rem; flex:1}
+.znak{font-family:Bitter,Georgia,serif; font-weight:800; font-size:2.35rem; line-height:1.1;
+  text-wrap:balance; margin:0}
+.znak span{color:var(--naglasak)}
+.podnaslov{margin:.35rem 0 0; color:var(--tinta-tiha); font-size:1.05rem}
+.izbori{display:flex; flex-direction:column; gap:.85rem; margin-top:auto}
+.tezina{display:flex; gap:.6rem}
+.tezina .gumb{min-height:62px; font-size:1rem; flex:1; flex-direction:column; gap:.1rem; padding:.4rem}
+.tezina .gumb small{font-weight:400; font-size:.8rem; color:var(--tinta-tiha)}
+.tezina .gumb[aria-pressed="true"]{
+  background:var(--naglasak-t); border-color:var(--naglasak); color:var(--tinta)}
+.tezina .gumb[aria-pressed="true"] small{color:var(--tinta)}
+.natpis{font-family:Bitter,Georgia,serif; font-weight:600; font-size:.82rem;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--tinta-tiha); margin:0 0 .5rem}
+
+/* ---------- traka napretka ---------- */
+.traka{
+  position:sticky; top:0; z-index:5; background:var(--papir);
+  border-bottom:2px solid var(--linija); padding:.7rem .9rem .6rem;
+}
+.traka-red{display:flex; align-items:center; justify-content:space-between; gap:.75rem}
+.postotak{font-family:Bitter,Georgia,serif; font-weight:800; font-size:1.5rem;
+  font-variant-numeric:tabular-nums}
+.brojac{color:var(--tinta-tiha); font-size:.95rem; font-variant-numeric:tabular-nums}
+.zica{height:14px; border-radius:99px; background:var(--papir-2);
+  border:1px solid var(--linija); overflow:hidden; margin-top:.5rem}
+.zica i{display:block; height:100%; background:var(--rijeseno); width:0%;
+  transition:width .35s ease}
+.ikona-gumb{
+  min-width:52px; min-height:52px; display:grid; place-items:center;
+  background:transparent; border:2px solid var(--linija); border-radius:12px; font-size:1.2rem}
+
+/* ---------- pojam ---------- */
+.pojam{padding:1.15rem .9rem .5rem; display:flex; flex-direction:column; gap:.85rem}
+.oznaka{
+  align-self:flex-start; font-family:Bitter,Georgia,serif; font-weight:600;
+  font-size:.85rem; letter-spacing:.1em; text-transform:uppercase;
+  background:var(--naglasak-t); color:var(--naglasak);
+  padding:.3rem .7rem; border-radius:99px;
+}
+/* pojam se sluša, ne čita - ostaje samo za čitače zaslona */
+.opis-skriven{
+  position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+.glas{display:flex; flex-direction:column; gap:.6rem}
+.cuj{
+  display:flex; align-items:center; justify-content:center; gap:.8rem;
+  min-height:76px; border-radius:16px; width:100%;
+  border:none; font-weight:800; font-size:1.5rem; letter-spacing:.06em;
+}
+.cuj svg{width:34px; height:34px; flex:none}
+/* CRVENO: aplikacija priča tebi */
+.cuj--sluh{background:var(--sluh); color:var(--sluh-tekst)}
+.cuj--sluh[data-govori="da"]{animation:puls 1.1s ease-in-out infinite}
+/* LJUBIČASTO: ti pričaš aplikaciji */
+.cuj--mik{background:var(--govor); color:var(--govor-tekst)}
+.cuj--mik[data-slusa="da"]{animation:puls 1.1s ease-in-out infinite}
+@keyframes puls{50%{filter:brightness(1.2)}}
+.cuo{
+  margin:0; text-align:center; font-size:1rem; color:var(--tinta-tiha);
+  background:var(--papir-2); border:2px dashed var(--linija);
+  border-radius:12px; padding:.55rem .7rem;
+}
+.cuo b{color:var(--tinta); font-family:Bitter,Georgia,serif; letter-spacing:.06em}
+
+/* ---------- polja za slova ---------- */
+.polja{display:flex; gap:6px; justify-content:center; flex-wrap:wrap; padding:.25rem 0 .1rem}
+.polje{
+  width:var(--polje-w); height:var(--polje-w);
+  display:grid; place-items:center; position:relative;
+  background:var(--papir-2); border:2px solid var(--tinta); border-radius:8px;
+  font-size:calc(var(--polje-w) * .52); font-weight:700; line-height:1;
+  font-family:Bitter,Georgia,serif;
+}
+.polje[data-krizano="da"]{border-style:double; border-width:5px}
+.polje[aria-current="true"]{
+  background:var(--naglasak); color:var(--naglasak-tekst); border-color:var(--naglasak);
+  box-shadow:0 0 0 4px var(--naglasak-t);
+}
+.polje b{position:absolute; top:2px; left:4px; font-size:11px; font-weight:400;
+  font-family:"Atkinson Hyperlegible",sans-serif; opacity:.65}
+.polje[aria-current="true"] b{opacity:.95}
+.tocno .polje{background:var(--rijeseno-t); border-color:var(--rijeseno); color:var(--rijeseno)}
+
+/* ---------- kretanje: zeleno nazad, plavo dalje ---------- */
+.kretanje{display:flex; gap:.6rem; padding:.35rem .9rem .5rem}
+.kretanje .gumb{flex:1; font-size:1.3rem; font-weight:800; border:none; min-height:74px}
+.gumb--nazad{background:var(--nazad); color:var(--nazad-tekst)}
+.gumb--dalje{background:var(--dalje); color:var(--dalje-tekst)}
+.kretanje .gumb:active{filter:brightness(.92)}
+
+/* ---------- tipkovnica ---------- */
+.tipkovnica{
+  margin-top:auto; padding:.55rem .5rem calc(.55rem + env(safe-area-inset-bottom));
+  background:var(--papir-2); border-top:2px solid var(--linija);
+  display:grid; grid-template-columns:repeat(6,1fr); gap:5px;
+}
+.tipka{
+  min-height:56px; border:2px solid var(--linija); border-radius:10px;
+  background:var(--papir); font-weight:700; font-size:1.3rem;
+  font-family:Bitter,Georgia,serif;
+}
+.tipka:active{background:var(--naglasak); color:var(--naglasak-tekst); border-color:var(--naglasak)}
+.tipka--sirok{grid-column:1 / -1; font-size:1.05rem;
+  font-family:"Atkinson Hyperlegible",sans-serif}
+/* DŽ/LJ/NJ su dva znaka - malo manji font da stanu u istu tipku */
+.tipka--digraf{font-size:1.05rem; letter-spacing:.02em}
+
+/* ---------- sloj s cijelom mrežom ---------- */
+.sloj{
+  position:fixed; inset:0; z-index:20; background:var(--papir);
+  display:flex; flex-direction:column;
+}
+.sloj-vrh{display:flex; align-items:center; justify-content:space-between; gap:.75rem;
+  padding:.8rem .9rem; border-bottom:2px solid var(--linija)}
+.sloj-tijelo{flex:1; overflow:auto; padding:1rem .6rem 2rem; display:grid; place-items:start center}
+.mreza{display:grid; gap:2px}
+.celija{
+  width:var(--mc,26px); height:var(--mc,26px); position:relative;
+  background:var(--papir-2); border:1.5px solid var(--tinta); border-radius:3px;
+  display:grid; place-items:center; font-weight:700; font-size:calc(var(--mc,26px)*.55);
+  font-family:Bitter,Georgia,serif;
+}
+.celija.prazna{background:transparent; border:none}
+.celija.rij{background:var(--rijeseno-t); border-color:var(--rijeseno); color:var(--rijeseno)}
+.celija.sad{background:var(--naglasak); border-color:var(--naglasak); color:var(--naglasak-tekst)}
+.celija b{position:absolute; top:0; left:2px; font-size:9px; font-weight:400; opacity:.6;
+  font-family:"Atkinson Hyperlegible",sans-serif}
+
+/* ---------- kraj ---------- */
+.kraj{padding:2rem 1.15rem; display:flex; flex-direction:column; gap:1.2rem; text-align:center;
+  flex:1; justify-content:center}
+.kraj .znak{font-size:2rem}
+.velika-brojka{font-family:Bitter,Georgia,serif; font-weight:800; font-size:4.2rem;
+  color:var(--rijeseno); line-height:1; font-variant-numeric:tabular-nums}
+
+/* ---------- bljesak pozadine: zeleno točno, crveno netočno ---------- */
+.bljesak{
+  position:fixed; inset:0; z-index:15; pointer-events:none;
+  opacity:0; transition:opacity .45s ease;
+}
+.bljesak--vidi{opacity:1}
+.bljesak--tocno{background:var(--bljesak-tocno)}
+.bljesak--netocno{background:var(--bljesak-netocno)}
+@media (prefers-reduced-motion:reduce){
+  .bljesak{transition:none}
+}
+
+/* ---------- sitno ---------- */
+.poruka{padding:1rem .9rem; color:var(--tinta-tiha); text-align:center}
+.red-sitno{display:flex; gap:.6rem; align-items:center; justify-content:center;
+  flex-wrap:wrap; color:var(--tinta-tiha); font-size:.9rem}
+.tekst-gumb{background:none; border:none; text-decoration:underline; padding:.6rem;
+  color:var(--tinta-tiha); font-size:.9rem}
+.red-glas{display:flex; gap:.6rem}
+.sitna-napomena{margin:.4rem 0 0; font-size:.85rem; color:var(--tinta-tiha)}
+#gSlova[aria-pressed="true"]{background:var(--naglasak-t); border-color:var(--naglasak)}
+#izborGlasa{
+  flex:1; min-height:56px; padding:0 .7rem; font:inherit; font-size:1rem;
+  background:var(--papir-2); color:var(--tinta);
+  border:2px solid var(--linija); border-radius:12px;
+}
+</style>
+
+<div id="app">
+
+  <!-- ===================== POČETNI ZASLON ===================== -->
+  <section class="zaslon" id="zPocetak">
+    <div class="pocetak">
+      <div>
+        <h1 class="znak">Didina <span>križaljka</span></h1>
+        <p class="podnaslov">Veliko slovo, pojam se čita naglas, napredak se sam pamti.</p>
+      </div>
+
+      <div class="izbori">
+        <button class="gumb gumb--glavni" id="gNastavi" hidden>Nastavi započetu</button>
+
+        <div>
+          <p class="natpis">Koliko riječi</p>
+          <div class="tezina" id="izborTezine">
+            <button class="gumb" data-n="10" aria-pressed="false">10<small>lakše</small></button>
+            <button class="gumb" data-n="14" aria-pressed="true">14<small>taman</small></button>
+            <button class="gumb" data-n="18" aria-pressed="false">18<small>teže</small></button>
+          </div>
+        </div>
+
+        <button class="gumb gumb--glavni" id="gNova">Nova križaljka</button>
+
+        <div id="redGlas" hidden>
+          <p class="natpis">Glas</p>
+          <div class="red-glas">
+            <select id="izborGlasa" aria-label="Odaberi glas"></select>
+            <button class="gumb" id="gProbaj" style="width:auto;min-height:56px;padding:0 1rem">Probaj</button>
+          </div>
+
+          <p class="natpis" style="margin-top:.9rem">Brzina govora</p>
+          <div class="tezina" id="izborBrzine">
+            <button class="gumb" data-b="0.55" aria-pressed="false">Vrlo sporo</button>
+            <button class="gumb" data-b="0.7"  aria-pressed="true">Sporo</button>
+            <button class="gumb" data-b="0.9"  aria-pressed="false">Normalno</button>
+          </div>
+
+          <button class="gumb" id="gSlova" aria-pressed="false" style="margin-top:.9rem">
+            Izgovaraj svako slovo
+          </button>
+          <p class="sitna-napomena">Isključeno. Uključi samo ako treba razlikovati Č i Ć.</p>
+        </div>
+
+        <div class="red-sitno">
+          <button class="tekst-gumb" id="gUcitaj">Učitaj s računala</button>
+          <input type="file" id="datoteka" accept="application/json,.json" hidden>
+          <span aria-hidden="true">·</span>
+          <button class="tekst-gumb" id="gTema">Tamno / svijetlo</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== RJEŠAVANJE ===================== -->
+  <section class="zaslon" id="zRjesavanje" hidden>
+    <div class="traka">
+      <div class="traka-red">
+        <span class="postotak" id="postotak">0%</span>
+        <span class="brojac" id="brojac">0 od 14 riječi</span>
+        <button class="ikona-gumb" id="gMreza" aria-label="Pokaži cijelu mrežu">▦</button>
+        <button class="ikona-gumb" id="gKuci" aria-label="Natrag na početak">✕</button>
+      </div>
+      <div class="zica"><i id="zica"></i></div>
+    </div>
+
+    <div class="pojam">
+      <span class="oznaka" id="oznaka">1. VODORAVNO</span>
+      <!-- Pojam se ne ispisuje - dida ga sluša. Ostaje u kodu radi
+           čitača zaslona i da ga tražilica riječi ima na čemu uhvatiti. -->
+      <p class="opis-skriven" id="opis">—</p>
+      <div class="glas">
+        <button class="cuj cuj--sluh" id="gCuj">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 2v2a8 8 0 0 1 0 16v2a10 10 0 0 0 0-20z"/>
+          </svg>
+          <span>SLUŠAJ</span>
+        </button>
+        <button class="cuj cuj--mik" id="gReci">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/>
+          </svg>
+          <span id="reciNatpis">GOVORI</span>
+        </button>
+      </div>
+      <p class="cuo" id="cuo" hidden></p>
+      <div class="polja" id="polja"></div>
+    </div>
+
+    <div class="kretanje">
+      <button class="gumb gumb--nazad" id="gNazad">◀ NAZAD</button>
+      <button class="gumb gumb--dalje" id="gDalje">DALJE ▶</button>
+    </div>
+
+    <div class="tipkovnica" id="tipkovnica"></div>
+  </section>
+
+  <!-- ===================== KRAJ ===================== -->
+  <section class="zaslon" id="zKraj" hidden>
+    <div class="kraj">
+      <div class="velika-brojka" id="krajPostotak">100%</div>
+      <h2 class="znak">Gotovo!</h2>
+      <p class="podnaslov" id="krajTekst">Sve riječi su na svom mjestu.</p>
+      <button class="gumb gumb--glavni" id="gOpet">Nova križaljka</button>
+      <button class="gumb" id="gVidiMrezu">Pogledaj mrežu</button>
+    </div>
+  </section>
+
+</div>
+
+<!-- pozadina koja bljesne zeleno/crveno; ne hvata dodire -->
+<div class="bljesak" id="bljesak" aria-hidden="true"></div>
+
+<!-- ===================== SLOJ S CIJELOM MREŽOM ===================== -->
+<div class="sloj" id="sloj" hidden>
+  <div class="sloj-vrh">
+    <strong id="slojNaslov">Cijela križaljka</strong>
+    <button class="gumb" id="gZatvoriSloj" style="width:auto;min-height:54px">Zatvori</button>
+  </div>
+  <div class="sloj-tijelo"><div class="mreza" id="mreza"></div></div>
+</div>
+
+<script id="rjecnik" type="application/json">/*__RJECNIK__*/</script>
+<script>
+"use strict";
+
+/* ============ podaci ============ */
+const RJECNIK = JSON.parse(document.getElementById("rjecnik").textContent);
+/* Tipkovnica ide hrvatskom abecedom, s DŽ, LJ i NJ na njihovom mjestu.
+   U MREŽU i dalje idu kao dva polja - jer "nj" nije uvijek digraf
+   (Rovinj jest, izvanjski nije), a to se bez rječnika oblika ne može
+   pouzdano razlučiti. Tipka samo štedi jedan pritisak. */
+const SLOVA = ["A","B","C","Č","Ć","D","DŽ","Đ","E","F","G","H","I","J","K",
+               "L","LJ","M","N","NJ","O","P","R","S","Š","T","U","V","Z","Ž"];
+const KLJUC = "didina-krizaljka-v1";
+
+/* ============ slaganje križaljke (isti algoritam kao generiraj.py) ============ */
+const k = (r, c) => r + "," + c;
+
+function mozeStaviti(mreza, rijec, r, c, smjer){
+  const n = rijec.length;
+  const celije = [];
+  for (let i = 0; i < n; i++) celije.push(smjer === "H" ? [r, c + i] : [r + i, c]);
+  const prije   = smjer === "H" ? [r, c - 1] : [r - 1, c];
+  const poslije = smjer === "H" ? [r, c + n] : [r + n, c];
+  if (mreza.has(k(...prije)) || mreza.has(k(...poslije))) return null;
+
+  let krizanja = 0;
+  for (let i = 0; i < n; i++){
+    const [cr, cc] = celije[i];
+    const kl = k(cr, cc);
+    if (mreza.has(kl)){
+      if (mreza.get(kl) !== rijec[i]) return null;
+      krizanja++;
+    } else {
+      // paralelne riječi se ne smiju dodirivati
+      const s = smjer === "H" ? [[cr - 1, cc], [cr + 1, cc]] : [[cr, cc - 1], [cr, cc + 1]];
+      if (s.some(([a, b]) => mreza.has(k(a, b)))) return null;
+    }
+  }
+  return krizanja;
+}
+
+function pozicije(mreza, rijec){
+  const van = new Set();
+  for (const [kl, slovo] of mreza){
+    const [r, c] = kl.split(",").map(Number);
+    for (let i = 0; i < rijec.length; i++){
+      if (rijec[i] !== slovo) continue;
+      if (mozeStaviti(mreza, rijec, r, c - i, "H") !== null) van.add([r, c - i, "H"].join("|"));
+      if (mozeStaviti(mreza, rijec, r - i, c, "V") !== null) van.add([r - i, c, "V"].join("|"));
+    }
+  }
+  return [...van].map(s => { const [a, b, d] = s.split("|"); return [ +a, +b, d ]; });
+}
+
+function postavi(mreza, rijec, r, c, smjer){
+  const novo = [];
+  for (let i = 0; i < rijec.length; i++){
+    const kl = smjer === "H" ? k(r, c + i) : k(r + i, c);
+    if (!mreza.has(kl)){ mreza.set(kl, rijec[i]); novo.push(kl); }
+  }
+  return novo;
+}
+const vrati = (mreza, novo) => novo.forEach(kl => mreza.delete(kl));
+
+function promijesaj(a){
+  for (let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function backtrack(mreza, stavljene, preostale, stanje){
+  if (stavljene.length > stanje.najbolje.length) stanje.najbolje = stavljene.slice();
+  if (!preostale.length) return true;
+  if (stanje.cvorovi >= stanje.maks) return false;
+  stanje.cvorovi++;
+
+  for (let i = 0; i < preostale.length; i++){
+    const rijec = preostale[i];
+    const ostatak = preostale.slice(0, i).concat(preostale.slice(i + 1));
+    const poz = promijesaj(pozicije(mreza, rijec)).slice(0, 40);
+    for (const [r, c, smjer] of poz){
+      const novo = postavi(mreza, rijec, r, c, smjer);
+      stavljene.push([rijec, r, c, smjer]);
+      if (backtrack(mreza, stavljene, ostatak, stanje)) return true;
+      stavljene.pop();
+      vrati(mreza, novo);
+    }
+  }
+  return false;
+}
+
+function slozi(rijeci){
+  const r = promijesaj(rijeci.slice());
+  const mreza = new Map();
+  postavi(mreza, r[0], 0, 0, "H");
+  const stavljene = [[r[0], 0, 0, "H"]];
+  const stanje = { cvorovi:0, maks:20000, najbolje:stavljene.slice() };
+  backtrack(mreza, stavljene, r.slice(1), stanje);
+  return stanje.najbolje;
+}
+
+function obrezi(stavljene){
+  const celije = new Map();
+  for (const [rijec, r, c, smjer] of stavljene)
+    for (let i = 0; i < rijec.length; i++)
+      celije.set(smjer === "H" ? k(r, c + i) : k(r + i, c), rijec[i]);
+
+  const tocke = [...celije.keys()].map(s => s.split(",").map(Number));
+  const minR = Math.min(...tocke.map(t => t[0])), minC = Math.min(...tocke.map(t => t[1]));
+  const mreza = new Map();
+  for (const [kl, v] of celije){
+    const [r, c] = kl.split(",").map(Number);
+    mreza.set(k(r - minR, c - minC), v);
+  }
+  return {
+    stavljene: stavljene.map(([rj, r, c, s]) => [rj, r - minR, c - minC, s]),
+    mreza,
+    redovi: Math.max(...tocke.map(t => t[0])) - minR + 1,
+    stupci: Math.max(...tocke.map(t => t[1])) - minC + 1
+  };
+}
+
+function numeriraj(mreza, redovi, stupci){
+  const brojevi = new Map(), unosi = [];
+  let broj = 0;
+  for (let r = 0; r < redovi; r++){
+    for (let c = 0; c < stupci; c++){
+      if (!mreza.has(k(r, c))) continue;
+      const pocV = !mreza.has(k(r, c - 1)) && mreza.has(k(r, c + 1));
+      const pocO = !mreza.has(k(r - 1, c)) && mreza.has(k(r + 1, c));
+      if (!pocV && !pocO) continue;
+      broj++;
+      brojevi.set(k(r, c), broj);
+      if (pocV) unosi.push({ broj, r, c, smjer:"H" });
+      if (pocO) unosi.push({ broj, r, c, smjer:"V" });
+    }
+  }
+  return { brojevi, unosi };
+}
+
+const procitaj = (mreza, r, c, smjer) => {
+  let s = "";
+  while (mreza.has(k(r, c))){ s += mreza.get(k(r, c)); smjer === "H" ? c++ : r++; }
+  return s;
+};
+
+/* biramo n riječi koje sve imaju RAZLIČIT opis - inače se iz opisa ne zna koja je koja */
+function uzorakRazlicitihOpisa(izvor, n){
+  const kandidati = promijesaj(izvor.slice());
+  const uzeti = [], vidjeni = new Set();
+  for (const u of kandidati){
+    if (vidjeni.has(u.o)) continue;
+    uzeti.push(u); vidjeni.add(u.o);
+    if (uzeti.length === n) return uzeti;
+  }
+  return null;
+}
+
+/* ---- povijest na mobitelu ----
+   Na laptopu postoji povijest.json za PDF-ove, ali njoj aplikacija ne može
+   pristupiti. Bez vlastite povijesti "Nova križaljka" zna ponoviti isti skup
+   riječi. Potpis je, kao i na laptopu, abecedno sortiran popis riječi. */
+const KLJUC_POVIJEST = "didina-krizaljka-povijest";
+const MAKS_POVIJESTI = 200;          // starije ispadaju, da ne raste bez kraja
+
+function ucitajPovijest(){
+  try {
+    const p = JSON.parse(localStorage.getItem(KLJUC_POVIJEST) || "[]");
+    return Array.isArray(p) ? p : [];
+  } catch (e) { return []; }
+}
+function zapamtiPotpis(potpis){
+  try {
+    const p = ucitajPovijest();
+    p.push(potpis);
+    localStorage.setItem(KLJUC_POVIJEST,
+      JSON.stringify(p.slice(-MAKS_POVIJESTI)));
+  } catch (e) {}
+}
+const potpisOd = rijeci => rijeci.slice().sort().join("|");
+
+function napraviKrizaljku(n, minPosjeti = 300){
+  let izvor = RJECNIK.filter(u => u.p >= minPosjeti && u.r.length >= 3 && u.r.length <= 11);
+  if (izvor.length < n * 2) izvor = RJECNIK.filter(u => u.r.length >= 3 && u.r.length <= 11);
+
+  const povijest = new Set(ucitajPovijest());
+  let najbolja = null, najveceP = -1;
+  for (let pokusaj = 0; pokusaj < 24; pokusaj++){
+    const uzorak = uzorakRazlicitihOpisa(izvor, n);
+    if (!uzorak) return null;
+    // preskoči kombinaciju koju je već rješavao
+    if (povijest.has(potpisOd(uzorak.map(u => u.r))) && pokusaj < 18) continue;
+    const opisi = new Map(uzorak.map(u => [u.r, u.o]));
+    const stavljene = slozi(uzorak.map(u => u.r));
+    if (stavljene.length < 2) continue;
+
+    const o = obrezi(stavljene);
+    // biramo raspored koji na ekranu daje najveća polja
+    const p = Math.min(360 / o.stupci, 420 / o.redovi);
+    if (stavljene.length > (najbolja ? najbolja.stavljene.length : 0) ||
+       (stavljene.length === (najbolja ? najbolja.stavljene.length : 0) && p > najveceP)){
+      najveceP = p;
+      najbolja = { ...o, opisi };
+    }
+  }
+  if (!najbolja) return null;
+
+  const { brojevi, unosi } = numeriraj(najbolja.mreza, najbolja.redovi, najbolja.stupci);
+  const pojmovi = unosi.map(u => {
+    const rijec = procitaj(najbolja.mreza, u.r, u.c, u.smjer);
+    return { ...u, rijec, opis: najbolja.opisi.get(rijec) || "" };
+  }).filter(p => p.rijec.length >= 2);
+
+  zapamtiPotpis(potpisOd(pojmovi.map(p => p.rijec)));
+
+  return {
+    redovi: najbolja.redovi, stupci: najbolja.stupci,
+    brojevi:[...brojevi], rjesenje:[...najbolja.mreza], pojmovi,
+    upisano:{}, napravljena:Date.now()
+  };
+}
+
+/* ============ stanje ============ */
+let K = null;          // trenutna križaljka
+let iPojam = 0;        // koji je pojam otvoren
+let iSlovo = 0;        // koje je slovo u fokusu
+let brojRijeci = 14;
+
+const $ = s => document.querySelector(s);
+const celijePojma = p => {
+  const van = [];
+  for (let i = 0; i < p.rijec.length; i++)
+    van.push(p.smjer === "H" ? [p.r, p.c + i] : [p.r + i, p.c]);
+  return van;
+};
+const upisanoNa = (r, c) => (K.upisano[k(r, c)] || "");
+const rijesen = p => celijePojma(p).every(([r, c], i) => upisanoNa(r, c) === p.rijec[i]);
+
+function brojKrizanja(r, c){
+  let n = 0;
+  for (const p of K.pojmovi) if (celijePojma(p).some(([a, b]) => a === r && b === c)) n++;
+  return n;
+}
+
+/* ============ spremanje ============ */
+function spremi(){
+  try { localStorage.setItem(KLJUC, JSON.stringify({ K, iPojam })); } catch (e) {}
+}
+function ucitajSpremljeno(){
+  try {
+    const s = localStorage.getItem(KLJUC);
+    if (!s) return null;
+    const o = JSON.parse(s);
+    return o && o.K && o.K.pojmovi ? o : null;
+  } catch (e) { return null; }
+}
+
+/* ============ govor ============ */
+let glasHR = null, sviGlasovi = [];
+const KLJUC_GLAS = "didina-krizaljka-glas";
+
+/* Glasovi se jako razlikuju po uređaju. Rangiramo ih: prvo hrvatski, pa
+   susjedni jezici, i unutar toga one koje proizvođači zovu "neural",
+   "enhanced" ili "premium" - to su mekši, manje robotski glasovi. */
+function ocjenaGlasa(g){
+  let bod = 0;
+  const jezik = (g.lang || "").toLowerCase();
+  if (jezik.startsWith("hr")) bod += 100;
+  else if (/^(sr|bs|sh)/.test(jezik)) bod += 60;
+  else if (jezik.startsWith("sl")) bod += 40;
+  else return -1;                                  // strani jezik ne dolazi u obzir
+  const ime = (g.name || "").toLowerCase();
+  if (/neural|enhanced|premium|natural|wavenet/.test(ime)) bod += 30;
+  if (/google/.test(ime)) bod += 15;               // Googleovi su na Androidu najmekši
+  if (/compact|espeak|pico/.test(ime)) bod -= 25;  // stari, oštri sintetizatori
+  return bod;
+}
+
+function nadiGlas(){
+  if (!("speechSynthesis" in window)) return;
+  sviGlasovi = speechSynthesis.getVoices().filter(g => ocjenaGlasa(g) >= 0);
+  sviGlasovi.sort((a, b) => ocjenaGlasa(b) - ocjenaGlasa(a));
+
+  let spremljen = null;
+  try { spremljen = localStorage.getItem(KLJUC_GLAS); } catch (e) {}
+  glasHR = (spremljen && sviGlasovi.find(g => g.name === spremljen)) || sviGlasovi[0] || null;
+  popuniIzborGlasa();
+}
+if ("speechSynthesis" in window){
+  nadiGlas();
+  speechSynthesis.onvoiceschanged = nadiGlas;
+}
+
+function popuniIzborGlasa(){
+  const sel = $("#izborGlasa");
+  if (!sel) return;
+  if (!sviGlasovi.length){ $("#redGlas").hidden = true; return; }
+  $("#redGlas").hidden = false;
+  sel.innerHTML = "";
+  sviGlasovi.forEach(g => {
+    const o = document.createElement("option");
+    o.value = g.name;
+    o.textContent = g.name.replace(/^.*?\s-\s/, "") + " (" + g.lang + ")";
+    if (glasHR && g.name === glasHR.name) o.selected = true;
+    sel.appendChild(o);
+  });
+}
+
+/* Osnovna brzina govora. 1.0 je "normalno" za sintetizator, a to je za
+   stariju osobu prebrzo - zato krećemo osjetno niže i puštamo da se mijenja. */
+const KLJUC_BRZINA = "didina-krizaljka-brzina";
+let brzinaGovora = 0.7;
+try {
+  const b = parseFloat(localStorage.getItem(KLJUC_BRZINA));
+  if (b >= 0.4 && b <= 1.2) brzinaGovora = b;
+} catch (e) {}
+
+/* iOS pušta govor tek nakon što je korisnik nešto dodirnuo. Pojam se čita
+   iz setTimeout-a (nakon slaganja križaljke), što iOS-u više ne izgleda kao
+   dodir - pa bi prvo čitanje ostalo nijemo. Zato na prvi dodir pustimo
+   nečujnu izjavu i time "odčepimo" sintetizator. */
+let govorOtkljucan = false;
+function otkljucajGovor(){
+  if (govorOtkljucan || !("speechSynthesis" in window)) return;
+  govorOtkljucan = true;
+  try {
+    const tiho = new SpeechSynthesisUtterance(" ");
+    tiho.volume = 0;
+    speechSynthesis.speak(tiho);
+  } catch (e) {}
+}
+document.addEventListener("pointerdown", otkljucajGovor, { once: true });
+document.addEventListener("touchstart", otkljucajGovor, { once: true });
+
+function izgovori(tekst, opcije){
+  if (!("speechSynthesis" in window)) return false;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(tekst);
+  if (glasHR) u.voice = glasHR;
+  u.lang = glasHR ? glasHR.lang : "hr-HR";
+  // faktor: kratke poruke (jedno slovo) smiju biti mrvicu brže od rečenice
+  u.rate = Math.max(0.4, Math.min(1.3, brzinaGovora * ((opcije && opcije.faktor) || 1)));
+  u.pitch = (opcije && opcije.visina) || 1.06;  // mrvicu više = mekše, manje robotski
+  u.volume = 1;
+  const gumb = $("#gCuj");
+  u.onstart = () => gumb && (gumb.dataset.govori = "da");
+  u.onend = u.onerror = () => gumb && (gumb.dataset.govori = "ne");
+  speechSynthesis.speak(u);
+  return true;
+}
+const recenicaPojma = p =>
+  `${p.broj}. ${p.smjer === "H" ? "vodoravno" : "okomito"}. ${p.opis}. ${p.rijec.length} slova.`;
+
+/* ============ slušanje (glasovni upis) ============ */
+const MOTOR_SLUHA = window.SpeechRecognition || window.webkitSpeechRecognition;
+let slusac = null, slusam = false, sluhSat = null;
+
+/* iOS ne zaustavi mikrofon sam kad prestaneš govoriti - zna visjeti i nikad
+   ne javiti rezultat. Zato ga sami prekidamo nakon ovoliko sekundi. */
+const NAJDULJE_SLUSANJE = 6000;
+
+/* iz izgovorenog vadimo samo hrvatska slova: "Dubrovnik." -> "DUBROVNIK" */
+const samoSlova = t => (t || "").toUpperCase().replace(/[^ABCČĆDĐEFGHIJKLMNOPRSŠTUVZŽ]/g, "");
+
+function poruka(tekst, pogodak){
+  const el = $("#cuo");
+  if (!tekst){ el.hidden = true; return; }
+  el.hidden = false;
+  el.innerHTML = pogodak ? `čuo sam <b>${tekst}</b>` : tekst;
+}
+
+function upisiCijeluRijec(rijec){
+  const p = K.pojmovi[iPojam];
+  const celije = celijePojma(p);
+  for (let i = 0; i < celije.length; i++){
+    const [r, c] = celije[i];
+    if (i < rijec.length) K.upisano[k(r, c)] = rijec[i];
+    else delete K.upisano[k(r, c)];
+  }
+  iSlovo = Math.min(rijec.length, celije.length - 1);
+  spremi();
+  crtajPojam();
+}
+
+function slusaj(){
+  if (!MOTOR_SLUHA){
+    poruka("Ovaj preglednik ne zna slušati. Upiši slova tipkama ispod.");
+    return;
+  }
+  if (slusam){ slusac && slusac.stop(); return; }
+
+  speechSynthesis && speechSynthesis.cancel();   // ne slušaj sam sebe
+  const p = K.pojmovi[iPojam];
+
+  slusac = new MOTOR_SLUHA();
+  slusac.lang = "hr-HR";
+  slusac.interimResults = false;
+  slusac.maxAlternatives = 6;
+
+  slusac.onstart = () => {
+    slusam = true;
+    $("#gReci").dataset.slusa = "da";
+    $("#reciNatpis").textContent = "Slušam…";
+    poruka("Reci riječ od " + p.rijec.length + " slova");
+    clearTimeout(sluhSat);
+    sluhSat = setTimeout(() => { try { slusac.stop(); } catch (e) {} },
+                         NAJDULJE_SLUSANJE);
+  };
+
+  slusac.onresult = e => {
+    clearTimeout(sluhSat);
+    const varijante = [...e.results[0]].map(a => samoSlova(a.transcript)).filter(Boolean);
+    if (!varijante.length){ poruka("Nisam razabrao. Pokušaj ponovno."); return; }
+    // između ponuđenih biramo onu s točnim brojem slova - osjetno podiže pogodak
+    const odabrana = varijante.find(v => v.length === p.rijec.length) || varijante[0];
+    upisiCijeluRijec(odabrana);
+    if (odabrana.length !== p.rijec.length){
+      poruka("čuo sam " + odabrana + " — a treba " + p.rijec.length + " slova");
+      izgovori("Čuo sam " + odabrana.length + " slova, a treba " + p.rijec.length + ".");
+    } else {
+      provjeriNaglas();               // kaže naglas je li pogodio
+    }
+  };
+
+  slusac.onerror = ev => {
+    clearTimeout(sluhSat);
+    const kako = {
+      "not-allowed": "Mikrofon nije dopušten. Dopusti ga u postavkama preglednika.",
+      "service-not-allowed": "Mikrofon nije dopušten na ovoj stranici.",
+      "no-speech": "Nisam ništa čuo. Pritisni pa govori.",
+      "network": "Za slušanje treba internet. Tipke ispod rade i bez njega."
+    };
+    poruka(kako[ev.error] || "Slušanje nije uspjelo. Upiši tipkama ispod.");
+  };
+
+  slusac.onend = () => {
+    clearTimeout(sluhSat);
+    slusam = false;
+    $("#gReci").dataset.slusa = "ne";
+    $("#reciNatpis").textContent = "GOVORI";
+  };
+
+  try { slusac.start(); }
+  catch (e) { poruka("Slušanje se ne može pokrenuti. Upiši tipkama ispod."); }
+}
+
+/* ============ crtanje ============ */
+function prikaziZaslon(id){
+  ["zPocetak", "zRjesavanje", "zKraj"].forEach(z => $("#" + z).hidden = (z !== id));
+}
+
+function osvjeziNapredak(){
+  const ukupno = K.pojmovi.length;
+  const gotovih = K.pojmovi.filter(rijesen).length;
+  const pct = ukupno ? Math.round(gotovih / ukupno * 100) : 0;
+  $("#postotak").textContent = pct + "%";
+  $("#brojac").textContent = `${gotovih} od ${ukupno} riječi`;
+  $("#zica").style.width = pct + "%";
+  return { gotovih, ukupno, pct };
+}
+
+function crtajPojam(){
+  const p = K.pojmovi[iPojam];
+  $("#oznaka").textContent = `${p.broj}. ${p.smjer === "H" ? "VODORAVNO" : "OKOMITO"}`;
+  $("#opis").textContent = p.opis || "(bez opisa)";
+
+  const polja = $("#polja");
+  polja.innerHTML = "";
+  polja.classList.toggle("tocno", rijesen(p));
+
+  const celije = celijePojma(p);
+
+  /* Duge riječi PRELAMAMO u više redova umjesto da smanjujemo polja.
+     Za slab vid je bolje 9 slova u dva reda nego u jednom sitnom. */
+  const sirina = Math.min(polja.clientWidth || window.innerWidth - 30, 520);
+  const RAZMAK = 7, ZELJENA = 78;
+  /* Biramo raspored s NAJVEĆIM poljima, a ne prvi koji prođe. Inače bi
+     riječ od 6 slova u jednom redu (54px) ispala sitnija od one od 9 slova
+     u dva reda (66px). Najviše 2 reda - u tri se riječ teško prati. */
+  let vel = 0;
+  for (let redaka = 1; redaka <= 3; redaka++){
+    const poRedu = Math.ceil(celije.length / redaka);
+    const kandidat = Math.min(ZELJENA,
+      Math.floor((sirina - (poRedu - 1) * RAZMAK) / poRedu));
+    if (kandidat > vel) vel = kandidat;
+    if (vel >= ZELJENA) break;              // veće ionako ne idemo
+    if (redaka === 2 && vel >= 54) break;   // treći red samo za jako duge riječi
+  }
+  vel = Math.max(38, vel);
+  polja.style.setProperty("--polje-w", vel + "px");
+
+  celije.forEach(([r, c], i) => {
+    const d = document.createElement("button");
+    d.className = "polje";
+    d.type = "button";
+    d.textContent = upisanoNa(r, c);
+    d.setAttribute("aria-label", `${i + 1}. slovo`);
+    if (i === iSlovo) d.setAttribute("aria-current", "true");
+    if (brojKrizanja(r, c) > 1) d.dataset.krizano = "da";
+    const br = K.brojeviMap.get(k(r, c));
+    if (br){ const b = document.createElement("b"); b.textContent = br; d.appendChild(b); }
+    d.addEventListener("click", () => { iSlovo = i; crtajPojam(); });
+    polja.appendChild(d);
+  });
+
+  const { pct, gotovih, ukupno } = osvjeziNapredak();
+  if (gotovih === ukupno && ukupno > 0) zavrsi(pct);
+}
+
+function crtajMrezu(){
+  const m = $("#mreza");
+  m.innerHTML = "";
+  m.style.gridTemplateColumns = `repeat(${K.stupci}, var(--mc))`;
+  const raspoloziv = Math.min(window.innerWidth - 28, 520);
+  m.style.setProperty("--mc", Math.max(16, Math.floor((raspoloziv - K.stupci * 2) / K.stupci)) + "px");
+
+  const sadCelije = new Set(celijePojma(K.pojmovi[iPojam]).map(([r, c]) => k(r, c)));
+  const rijeseneCelije = new Set();
+  K.pojmovi.filter(rijesen).forEach(p => celijePojma(p).forEach(([r, c]) => rijeseneCelije.add(k(r, c))));
+
+  for (let r = 0; r < K.redovi; r++){
+    for (let c = 0; c < K.stupci; c++){
+      const d = document.createElement("div");
+      const kl = k(r, c);
+      if (!K.rjesenjeMap.has(kl)){ d.className = "celija prazna"; m.appendChild(d); continue; }
+      d.className = "celija" + (sadCelije.has(kl) ? " sad" : rijeseneCelije.has(kl) ? " rij" : "");
+      d.textContent = upisanoNa(r, c);
+      const br = K.brojeviMap.get(kl);
+      if (br){ const b = document.createElement("b"); b.textContent = br; d.appendChild(b); }
+      m.appendChild(d);
+    }
+  }
+}
+
+/* ============ bljesak pozadine ============ */
+/* Boja stigne prije nego što glas dovrši rečenicu, pa dida odmah zna
+   je li pogodio - ne mora čekati da se izgovori. */
+let bljesakSat = null;
+function bljesni(vrsta){
+  const sloj = $("#bljesak");
+  if (!sloj) return;
+  clearTimeout(bljesakSat);
+  sloj.className = "bljesak bljesak--" + vrsta;
+  // reflow, da se animacija ponovno pokrene i kad je ista vrsta zaredom
+  void sloj.offsetWidth;
+  sloj.classList.add("bljesak--vidi");
+  bljesakSat = setTimeout(() => sloj.classList.remove("bljesak--vidi"), 1600);
+}
+
+/* ============ provjera naglas ============ */
+/* Rješenje putuje zajedno s križaljkom (polje "rjesenje" i "rijec" svakog
+   pojma), pa provjera radi i za križaljke učitane s računala - ne samo za
+   one koje aplikacija sama složi. */
+const popunjen = p => celijePojma(p).every(([r, c]) => upisanoNa(r, c) !== "");
+
+/* Pamtimo pojam I upisana slova. Da pamtimo samo pojam, ispravak krivog
+   odgovora prošao bi u tišini - a baš tada potvrda najviše treba. */
+let zadnjiJavljen = "";
+const upisanoUPojmu = p => celijePojma(p).map(([r, c]) => upisanoNa(r, c) || "·").join("");
+
+function provjeriNaglas(){
+  const p = K.pojmovi[iPojam];
+  if (!popunjen(p)){ zadnjiJavljen = ""; return; }
+  const sada = iPojam + ":" + upisanoUPojmu(p);
+  if (zadnjiJavljen === sada) return;
+  zadnjiJavljen = sada;
+
+  if (rijesen(p)){
+    bljesni("tocno");
+    poruka("Točno — " + p.rijec, false);
+    izgovori("Točno. " + p.rijec.split("").join(", "), { visina: 1.15 });
+    // nakon pohvale sam prelazi na prvi neriješeni pojam
+    setTimeout(() => {
+      const sljedeci = K.pojmovi.findIndex((q, i) => i !== iPojam && !rijesen(q));
+      if (sljedeci >= 0){
+        iPojam = sljedeci; iSlovo = 0; poruka(""); spremi(); crtajPojam();
+        izgovori(recenicaPojma(K.pojmovi[iPojam]));
+      }
+    }, 2200);
+  } else {
+    bljesni("netocno");
+    poruka("Nije točno");
+    izgovori("Nije točno.", { visina: 0.98 });   // kratko - boja već sve kaže
+  }
+}
+
+/* ============ izgovor pojedinog slova ============ */
+/* Sintetizator izgovori "Č" i "Ć" gotovo jednako, pa ih imenujemo onako
+   kako se govori u školi - tvrdo i meko. Isto vrijedi za Š, Ž, Đ. */
+const IMENA_SLOVA = {
+  "Č": "tvrdo če", "Ć": "meko će",
+  "Š": "š, kao šuma", "Ž": "ž, kao žaba", "Đ": "đ, kao đak",
+  "DŽ": "dže", "LJ": "elj", "NJ": "enj",
+};
+const imeSlova = s => IMENA_SLOVA[s] || s;
+
+/* Po zadanome isključeno: stalno javljanje smeta dok se upisuje. */
+const KLJUC_SLOVA = "didina-krizaljka-slova";
+let izgovaraj_slova = false;
+try { izgovaraj_slova = localStorage.getItem(KLJUC_SLOVA) === "da"; } catch (e) {}
+
+/* ============ upis slova ============ */
+function upisi(niz){
+  const p = K.pojmovi[iPojam];
+  const celije = celijePojma(p);
+  if (iSlovo >= celije.length) return;
+
+  // niz je obično jedno slovo, ali DŽ/LJ/NJ upisuju dva polja odjednom
+  for (const znak of niz){
+    if (iSlovo >= celije.length) break;
+    const [r, c] = celije[iSlovo];
+    K.upisano[k(r, c)] = znak;
+    iSlovo++;
+  }
+  if (iSlovo >= celije.length) iSlovo = celije.length - 1;
+
+  spremi();
+  crtajPojam();
+
+  // Izgovor svakog slova je po zadanome ISKLJUČEN - previše prekida upis.
+  // Uključuje se u postavkama, uglavnom radi razlikovanja Č i Ć.
+  if (popunjen(p)) provjeriNaglas();
+  else if (izgovaraj_slova) izgovori(imeSlova(niz), { faktor: 1.15 });
+}
+function obrisi(){
+  const p = K.pojmovi[iPojam];
+  const celije = celijePojma(p);
+  const [r, c] = celije[iSlovo];
+  if (upisanoNa(r, c)) delete K.upisano[k(r, c)];
+  else if (iSlovo > 0){ iSlovo--; delete K.upisano[k(...celije[iSlovo])]; }
+  zadnjiJavljen = "";
+  poruka("");
+  spremi();
+  crtajPojam();
+  if (izgovaraj_slova) izgovori("obrisano", { faktor: 1.15 });
+}
+function pomakni(smjer){
+  if (slusam && slusac) slusac.stop();
+  poruka("");
+  iPojam = (iPojam + smjer + K.pojmovi.length) % K.pojmovi.length;
+  iSlovo = 0;
+  zadnjiJavljen = "";          // novi pojam - kreni s čistim stanjem
+  spremi();
+  crtajPojam();
+  izgovori(recenicaPojma(K.pojmovi[iPojam]));
+}
+
+/* ============ tipkovnica ============ */
+function napraviTipkovnicu(){
+  const t = $("#tipkovnica");
+  t.innerHTML = "";
+  SLOVA.forEach(s => {
+    const b = document.createElement("button");
+    b.className = "tipka" + (s.length > 1 ? " tipka--digraf" : "");
+    b.type = "button";
+    b.textContent = s;
+    if (s.length > 1) b.setAttribute("aria-label", s.split("").join(" "));
+    b.addEventListener("click", () => upisi(s));
+    t.appendChild(b);
+  });
+  const br = document.createElement("button");
+  br.className = "tipka tipka--sirok"; br.type = "button"; br.textContent = "⌫ Briši";
+  br.addEventListener("click", obrisi);
+  t.appendChild(br);
+}
+
+/* ============ pokretanje križaljke ============ */
+function pripremiMape(){
+  K.brojeviMap = new Map(K.brojevi);
+  K.rjesenjeMap = new Map(K.rjesenje);
+}
+
+function pokreni(krizaljka, pojam = 0){
+  K = krizaljka;
+  pripremiMape();
+  iPojam = Math.min(pojam, K.pojmovi.length - 1);
+  iSlovo = 0;
+  prikaziZaslon("zRjesavanje");
+  crtajPojam();
+  spremi();
+}
+
+function zavrsi(pct){
+  $("#krajPostotak").textContent = pct + "%";
+  $("#krajTekst").textContent =
+    `Svih ${K.pojmovi.length} riječi je na svom mjestu. Bravo!`;
+  prikaziZaslon("zKraj");
+  izgovori("Bravo! Križaljka je riješena.");
+}
+
+function novaKrizaljka(){
+  const g = $("#gNova");
+  const staro = g.textContent;
+  g.textContent = "Slažem…";
+  g.disabled = true;
+  setTimeout(() => {                       // pusti preglednik da iscrta natpis
+    const krizaljka = napraviKrizaljku(brojRijeci);
+    g.textContent = staro; g.disabled = false;
+    if (!krizaljka){ alert("Nema dovoljno riječi za toliko pojmova."); return; }
+    pokreni(krizaljka);
+    izgovori(recenicaPojma(K.pojmovi[0]));
+  }, 30);
+}
+
+/* ============ događaji ============ */
+$("#izborTezine").addEventListener("click", e => {
+  const b = e.target.closest("button[data-n]");
+  if (!b) return;
+  brojRijeci = +b.dataset.n;
+  [...e.currentTarget.children].forEach(x =>
+    x.setAttribute("aria-pressed", String(x === b)));
+});
+
+$("#gNova").addEventListener("click", novaKrizaljka);
+$("#gOpet").addEventListener("click", () => { prikaziZaslon("zPocetak"); novaKrizaljka(); });
+$("#gNastavi").addEventListener("click", () => {
+  const s = ucitajSpremljeno();
+  if (s) pokreni(s.K, s.iPojam);
+});
+$("#gCuj").addEventListener("click", () => {
+  if (!izgovori(recenicaPojma(K.pojmovi[iPojam])))
+    poruka("Ovaj preglednik ne zna čitati naglas.");
+});
+$("#gReci").addEventListener("click", slusaj);
+$("#izborGlasa").addEventListener("change", e => {
+  glasHR = sviGlasovi.find(g => g.name === e.target.value) || glasHR;
+  try { localStorage.setItem(KLJUC_GLAS, e.target.value); } catch (err) {}
+});
+$("#gProbaj").addEventListener("click", () =>
+  izgovori("Dobar dan. Ovako ću vam čitati pojmove."));
+
+$("#izborBrzine").addEventListener("click", e => {
+  const b = e.target.closest("button[data-b]");
+  if (!b) return;
+  brzinaGovora = parseFloat(b.dataset.b);
+  try { localStorage.setItem(KLJUC_BRZINA, b.dataset.b); } catch (err) {}
+  [...e.currentTarget.children].forEach(x =>
+    x.setAttribute("aria-pressed", String(x === b)));
+  izgovori("Ovako ću pričati.");        // odmah se čuje razlika
+});
+
+$("#gSlova").addEventListener("click", e => {
+  izgovaraj_slova = !izgovaraj_slova;
+  try { localStorage.setItem(KLJUC_SLOVA, izgovaraj_slova ? "da" : "ne"); } catch (err) {}
+  oznaciSlova();
+  if (izgovaraj_slova) izgovori("tvrdo če", { faktor: 1.15 });
+});
+
+function oznaciSlova(){
+  const g = $("#gSlova");
+  g.setAttribute("aria-pressed", String(izgovaraj_slova));
+  g.nextElementSibling.textContent = izgovaraj_slova
+    ? "Uključeno. Svako upisano slovo se izgovori."
+    : "Isključeno. Uključi samo ako treba razlikovati Č i Ć.";
+}
+oznaciSlova();
+
+/* označi brzinu koja je zapamćena od prošli put */
+[...$("#izborBrzine").children].forEach(x =>
+  x.setAttribute("aria-pressed", String(parseFloat(x.dataset.b) === brzinaGovora)));
+$("#gDalje").addEventListener("click", () => pomakni(1));
+$("#gNazad").addEventListener("click", () => pomakni(-1));
+$("#gKuci").addEventListener("click", () => { spremi(); osvjeziPocetak(); prikaziZaslon("zPocetak"); });
+$("#gMreza").addEventListener("click", () => { crtajMrezu(); $("#sloj").hidden = false; });
+$("#gVidiMrezu").addEventListener("click", () => { crtajMrezu(); $("#sloj").hidden = false; });
+$("#gZatvoriSloj").addEventListener("click", () => $("#sloj").hidden = true);
+
+$("#gTema").addEventListener("click", () => {
+  const sad = document.documentElement.getAttribute("data-theme");
+  const tamno = sad ? sad === "dark"
+    : matchMedia("(prefers-color-scheme: dark)").matches;
+  document.documentElement.setAttribute("data-theme", tamno ? "light" : "dark");
+});
+
+$("#gUcitaj").addEventListener("click", () => $("#datoteka").click());
+$("#datoteka").addEventListener("change", e => {
+  const f = e.target.files[0];
+  if (!f) return;
+  const c = new FileReader();
+  c.onload = () => {
+    try {
+      const o = JSON.parse(c.result);
+      if (!o.pojmovi || !o.rjesenje) throw new Error("krivi oblik");
+      o.upisano = o.upisano || {};
+      pokreni(o);
+    } catch (err) {
+      alert("Ne mogu pročitati tu datoteku. Treba biti križaljka spremljena iz generiraj.py.");
+    }
+  };
+  c.readAsText(f);
+});
+
+// tipkovnica računala, da se može isprobati i na stolnom
+addEventListener("keydown", e => {
+  if ($("#zRjesavanje").hidden) return;
+  const s = e.key.toUpperCase();
+  if (SLOVA.includes(s)) { upisi(s); e.preventDefault(); }
+  else if (e.key === "Backspace") { obrisi(); e.preventDefault(); }
+  else if (e.key === "ArrowRight") pomakni(1);
+  else if (e.key === "ArrowLeft") pomakni(-1);
+});
+
+addEventListener("resize", () => { if (!$("#zRjesavanje").hidden) crtajPojam(); });
+
+/* ============ start ============ */
+function osvjeziPocetak(){
+  const s = ucitajSpremljeno();
+  const g = $("#gNastavi");
+  if (s){
+    const gotovih = s.K.pojmovi.filter(p => {
+      const cel = [];
+      for (let i = 0; i < p.rijec.length; i++)
+        cel.push(p.smjer === "H" ? [p.r, p.c + i] : [p.r + i, p.c]);
+      return cel.every(([r, c], i) => (s.K.upisano[k(r, c)] || "") === p.rijec[i]);
+    }).length;
+    const pct = Math.round(gotovih / s.K.pojmovi.length * 100);
+    g.textContent = `Nastavi započetu · ${pct}%`;
+    g.hidden = false;
+  } else g.hidden = true;
+}
+
+/* ---- križaljka poslana linkom: .../#k=<base64> ----
+   Tako dida ne mora baratati datotekama - samo klikne link u poruci.
+   Link nosi i rješenje, pa provjera "točno/netočno" radi i offline. */
+function izLinka(){
+  const h = location.hash || "";
+  if (!h.startsWith("#k=")) return null;
+  try {
+    const b64 = h.slice(3).replace(/-/g, "+").replace(/_/g, "/");
+    const bin = atob(b64);
+    const bajtovi = Uint8Array.from(bin, z => z.charCodeAt(0));
+    const sitno = JSON.parse(new TextDecoder("utf-8").decode(bajtovi));
+    // sitni oblik: {n:[[rijec,r,c,smjer,opis],...]} - ostalo izračunamo sami
+    const stavljene = sitno.n.map(([rj, r, c, s]) => [rj, r, c, s]);
+    const opisi = new Map(sitno.n.map(([rj, , , , o]) => [rj, o]));
+    const o = obrezi(stavljene);
+    const { brojevi, unosi } = numeriraj(o.mreza, o.redovi, o.stupci);
+    const pojmovi = unosi.map(u => {
+      const rijec = procitaj(o.mreza, u.r, u.c, u.smjer);
+      return { ...u, rijec, opis: opisi.get(rijec) || "" };
+    }).filter(p => p.rijec.length >= 2);
+    return { redovi:o.redovi, stupci:o.stupci, brojevi:[...brojevi],
+             rjesenje:[...o.mreza], pojmovi, upisano:{} };
+  } catch (e) { return null; }
+}
+
+/* Service worker radi samo s prave adrese (https), ne iz file:// ni iz
+   ugrađenog pregleda - zato je u try/catch i nikad ne ruši aplikaciju. */
+if ("serviceWorker" in navigator && location.protocol === "https:"){
+  addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+
+napraviTipkovnicu();
+osvjeziPocetak();
+
+const izLinkaKrizaljka = izLinka();
+if (izLinkaKrizaljka){
+  pokreni(izLinkaKrizaljka);
+  history.replaceState(null, "", location.pathname + location.search);
+}
+</script>
