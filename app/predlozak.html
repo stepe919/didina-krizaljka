@@ -111,7 +111,19 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
 .gumb--glavni:active{filter:brightness(.94)}
 
 /* ---------- početni zaslon ---------- */
-.pocetak{padding:2rem 1.15rem 1.5rem; display:flex; flex-direction:column; gap:1.5rem; flex:1}
+.pocetak{padding:2rem 1.15rem 1.5rem; display:flex; flex-direction:column; gap:1.5rem; flex:1;
+  overflow-y:auto}
+/* Jedan potez, što veći. Mrena raspršuje svjetlo pa sitni tekst "curi" -
+   velika ploha punog kontrasta čita se i kad rubovi nisu oštri. */
+.ogroman{
+  min-height:120px; font-size:2rem; font-weight:800; letter-spacing:.04em;
+  flex-direction:column; gap:.15rem; border-radius:18px;
+}
+.ogroman em{font-style:normal; font-size:1.15rem; font-weight:700; opacity:.9}
+.gumb.tiho{
+  min-height:58px; font-size:1rem; font-weight:700;
+  background:transparent; color:var(--tinta-tiha); border-color:var(--linija);
+}
 .znak{font-family:Bitter,Georgia,serif; font-weight:800; font-size:2.35rem; line-height:1.1;
   text-wrap:balance; margin:0}
 .znak span{color:var(--naglasak)}
@@ -281,14 +293,27 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
   <!-- ===================== POČETNI ZASLON ===================== -->
   <section class="zaslon" id="zPocetak">
     <div class="pocetak">
-      <div>
-        <h1 class="znak">Didina <span>križaljka</span></h1>
-        <p class="podnaslov">Veliko slovo, pojam se čita naglas, napredak se sam pamti.</p>
-      </div>
+      <h1 class="znak">Didina <span>križaljka</span></h1>
 
+      <!-- Samo ono što mu treba da krene. Sve ostalo je u Postavkama. -->
       <div class="izbori">
-        <button class="gumb gumb--glavni" id="gNastavi" hidden>Nastavi započetu</button>
+        <button class="gumb ogroman gumb--glavni" id="gNastavi" hidden>
+          <span>NASTAVI</span><em id="nastaviPostotak">0%</em>
+        </button>
+        <button class="gumb ogroman gumb--glavni" id="gNova">
+          <span>POČNI</span>
+        </button>
+        <button class="gumb tiho" id="gPostavke">Postavke</button>
+      </div>
+    </div>
+  </section>
 
+  <!-- ===================== POSTAVKE ===================== -->
+  <section class="zaslon" id="zPostavke" hidden>
+    <div class="pocetak">
+      <h2 class="znak" style="font-size:1.9rem">Postavke</h2>
+
+      <div class="izbori" style="margin-top:1rem">
         <div>
           <p class="natpis">Koliko riječi</p>
           <div class="tezina" id="izborTezine">
@@ -298,7 +323,13 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
           </div>
         </div>
 
-        <button class="gumb gumb--glavni" id="gNova">Nova križaljka</button>
+        <div>
+          <p class="natpis">Boje</p>
+          <div class="tezina" id="izborTeme">
+            <button class="gumb" data-t="light" aria-pressed="false">Svijetlo<small>crno na bijelom</small></button>
+            <button class="gumb" data-t="dark" aria-pressed="false">Tamno<small>manje blješti</small></button>
+          </div>
+        </div>
 
         <div id="redGlas" hidden>
           <p class="natpis">Glas</p>
@@ -321,11 +352,11 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
         </div>
 
         <div class="red-sitno">
-          <button class="tekst-gumb" id="gUcitaj">Učitaj s računala</button>
+          <button class="tekst-gumb" id="gUcitaj">Učitaj križaljku s računala</button>
           <input type="file" id="datoteka" accept="application/json,.json" hidden>
-          <span aria-hidden="true">·</span>
-          <button class="tekst-gumb" id="gTema">Tamno / svijetlo</button>
         </div>
+
+        <button class="gumb ogroman gumb--glavni" id="gGotovoPostavke">GOTOVO</button>
       </div>
     </div>
   </section>
@@ -848,7 +879,8 @@ function slusaj(){
 
 /* ============ crtanje ============ */
 function prikaziZaslon(id){
-  ["zPocetak", "zRjesavanje", "zKraj"].forEach(z => $("#" + z).hidden = (z !== id));
+  ["zPocetak", "zPostavke", "zRjesavanje", "zKraj"]
+    .forEach(z => $("#" + z).hidden = (z !== id));
 }
 
 function osvjeziNapredak(){
@@ -1090,14 +1122,21 @@ function zavrsi(pct){
   izgovori("Bravo! Križaljka je riješena.");
 }
 
+/* Natpis mijenjamo unutar <span>-a, ne preko cijelog gumba - inače bi
+   privremeno "Slažem…" obrisalo span i sve kasnije promjene natpisa bi pukle. */
+function natpisNove(tekst){
+  const s = $("#gNova").querySelector("span");
+  if (s) s.textContent = tekst;
+}
+
 function novaKrizaljka(){
   const g = $("#gNova");
-  const staro = g.textContent;
-  g.textContent = "Slažem…";
+  const staro = g.querySelector("span").textContent;
+  natpisNove("Slažem…");
   g.disabled = true;
   setTimeout(() => {                       // pusti preglednik da iscrta natpis
     const krizaljka = napraviKrizaljku(brojRijeci);
-    g.textContent = staro; g.disabled = false;
+    natpisNove(staro); g.disabled = false;
     if (!krizaljka){ alert("Nema dovoljno riječi za toliko pojmova."); return; }
     pokreni(krizaljka);
     izgovori(recenicaPojma(K.pojmovi[0]));
@@ -1167,12 +1206,29 @@ $("#gMreza").addEventListener("click", () => { crtajMrezu(); $("#sloj").hidden =
 $("#gVidiMrezu").addEventListener("click", () => { crtajMrezu(); $("#sloj").hidden = false; });
 $("#gZatvoriSloj").addEventListener("click", () => $("#sloj").hidden = true);
 
-$("#gTema").addEventListener("click", () => {
-  const sad = document.documentElement.getAttribute("data-theme");
-  const tamno = sad ? sad === "dark"
-    : matchMedia("(prefers-color-scheme: dark)").matches;
-  document.documentElement.setAttribute("data-theme", tamno ? "light" : "dark");
+$("#gPostavke").addEventListener("click", () => prikaziZaslon("zPostavke"));
+$("#gGotovoPostavke").addEventListener("click", () => {
+  osvjeziPocetak();
+  prikaziZaslon("zPocetak");
 });
+
+/* Boje: mrena raspršuje svjetlo, pa nekima svijetla podloga blješti a
+   nekima tamna smanjuje kontrast - zato biramo, ne pogađamo. */
+const KLJUC_TEMA = "didina-krizaljka-tema";
+function postaviTemu(t){
+  document.documentElement.setAttribute("data-theme", t);
+  try { localStorage.setItem(KLJUC_TEMA, t); } catch (e) {}
+  [...$("#izborTeme").children].forEach(x =>
+    x.setAttribute("aria-pressed", String(x.dataset.t === t)));
+}
+$("#izborTeme").addEventListener("click", e => {
+  const b = e.target.closest("button[data-t]");
+  if (b) postaviTemu(b.dataset.t);
+});
+try {
+  const spremljenaTema = localStorage.getItem(KLJUC_TEMA);
+  if (spremljenaTema) postaviTemu(spremljenaTema);
+} catch (e) {}
 
 $("#gUcitaj").addEventListener("click", () => $("#datoteka").click());
 $("#datoteka").addEventListener("change", e => {
@@ -1207,8 +1263,10 @@ addEventListener("resize", () => { if (!$("#zRjesavanje").hidden) crtajPojam(); 
 /* ============ start ============ */
 function osvjeziPocetak(){
   const s = ucitajSpremljeno();
-  const g = $("#gNastavi");
-  if (s){
+  const nastavi = $("#gNastavi");
+  const nova = $("#gNova");
+
+  if (s && s.K && s.K.pojmovi){
     const gotovih = s.K.pojmovi.filter(p => {
       const cel = [];
       for (let i = 0; i < p.rijec.length; i++)
@@ -1216,9 +1274,19 @@ function osvjeziPocetak(){
       return cel.every(([r, c], i) => (s.K.upisano[k(r, c)] || "") === p.rijec[i]);
     }).length;
     const pct = Math.round(gotovih / s.K.pojmovi.length * 100);
-    g.textContent = `Nastavi započetu · ${pct}%`;
-    g.hidden = false;
-  } else g.hidden = true;
+
+    if (gotovih < s.K.pojmovi.length){
+      // Započeta pa nedovršena: nastavak je glavni potez, nova je sporedna
+      $("#nastaviPostotak").textContent = "riješeno " + pct + "%";
+      nastavi.hidden = false;
+      natpisNove("NOVA KRIŽALJKA");
+      nova.classList.remove("gumb--glavni");
+      return;
+    }
+  }
+  nastavi.hidden = true;
+  natpisNove("POČNI");
+  nova.classList.add("gumb--glavni");
 }
 
 /* ---- križaljka poslana linkom: .../#k=<base64> ----
