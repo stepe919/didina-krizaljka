@@ -913,7 +913,23 @@ function upisiCijeluRijec(rijec){
   crtajPojam();
 }
 
+/* Na iPhoneu prepoznavanje govora NE radi unutar aplikacije dodane na
+   početni zaslon - API postoji i start() prođe, ali rezultat nikad ne stigne.
+   U Safariju radi. Bolje to reći nego pustiti gumb da šuti. */
+const jeIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+              (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+const jeSamostalna = (window.matchMedia &&
+                      window.matchMedia("(display-mode: standalone)").matches) ||
+                     navigator.standalone === true;
+const sluhNemoguc = jeIOS && jeSamostalna;
+
 function slusaj(){
+  if (sluhNemoguc){
+    poruka("Na iPhoneu govor radi samo u Safariju, ne u ikoni s " +
+           "početnog zaslona. Upiši slova tipkama ispod.");
+    izgovori("Na iPhoneu govor radi samo u Safariju. Upiši slova tipkama.");
+    return;
+  }
   if (!MOTOR_SLUHA){
     poruka("Ovaj preglednik ne zna slušati. Upiši slova tipkama ispod.");
     return;
@@ -928,6 +944,8 @@ function slusaj(){
   slusac.interimResults = false;
   slusac.maxAlternatives = 6;
 
+  let stigaoRezultat = false;
+
   slusac.onstart = () => {
     slusam = true;
     $("#gReci").dataset.slusa = "da";
@@ -940,6 +958,7 @@ function slusaj(){
 
   slusac.onresult = e => {
     clearTimeout(sluhSat);
+    stigaoRezultat = true;
     const varijante = [...e.results[0]].map(a => samoSlova(a.transcript)).filter(Boolean);
     if (!varijante.length){ poruka("Nisam razabrao. Pokušaj ponovno."); return; }
     // između ponuđenih biramo onu s točnim brojem slova - osjetno podiže pogodak
@@ -969,6 +988,9 @@ function slusaj(){
     slusam = false;
     $("#gReci").dataset.slusa = "ne";
     $("#reciNatpis").textContent = "GOVORI";
+    // tiho zavrsilo bez ijedne rijeci - reci to, ne ostavljaj prazan ekran
+    if (!stigaoRezultat && $("#cuo").textContent.indexOf("Reci riječ") === 0)
+      poruka("Nisam ništa razabrao. Probaj opet ili upiši tipkama.");
   };
 
   try { slusac.start(); }
