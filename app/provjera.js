@@ -35,7 +35,13 @@ setTimeout(() => {
   provjeri("tipkovnica ima 30 slova + briši",
     $("#tipkovnica").children.length === 31,
     "ima " + $("#tipkovnica").children.length);
-  provjeri("početni zaslon je vidljiv", !$("#zPocetak").hidden);
+  // Na praznom uređaju aplikacija kreće od početnog namještanja, ne od
+  // početnog zaslona - dida ne smije dobiti izbornik prije nego što je
+  // išta namješteno.
+  provjeri("prvo pokretanje otvara namještanje", !$("#zUvod").hidden);
+  provjeri("početni zaslon se NE nudi prije namještanja", $("#zPocetak").hidden);
+  // preskočimo namještanje da ostatak provjere ide na rješavanje
+  for (let i = 0; i < 5; i++) klik($("#gUvodDalje"));
 
   console.log("\n=== 2. generiranje križaljke ===");
   klik($("#gNova"));

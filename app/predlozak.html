@@ -124,6 +124,36 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
   min-height:58px; font-size:1rem; font-weight:700;
   background:transparent; color:var(--tinta-tiha); border-color:var(--linija);
 }
+
+/* ---------- prvo pokretanje ---------- */
+.uvod{padding:1.6rem 1.15rem 1.4rem; display:flex; flex-direction:column;
+  gap:1.1rem; flex:1; overflow-y:auto}
+.korak{margin:0; font-family:Bitter,Georgia,serif; font-weight:600; font-size:.85rem;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--tinta-tiha)}
+.uvod-pitanje{margin:0; font-size:clamp(1.6rem,7vw,2.2rem); line-height:1.2;
+  font-weight:800; text-wrap:balance; font-family:Bitter,Georgia,serif}
+.uvod-tijelo{display:flex; flex-direction:column; gap:.7rem}
+.uvod .ogroman{margin-top:auto}
+
+/* ---------- vrste križaljki ---------- */
+.vrste{display:flex; flex-direction:column; gap:.6rem}
+.vrsta{
+  display:flex; align-items:center; gap:.9rem; text-align:left;
+  min-height:76px; padding:.7rem 1rem; width:100%;
+  background:var(--papir-2); color:var(--tinta);
+  border:2px solid var(--linija); border-radius:14px;
+}
+.vrsta .kvacica{
+  flex:none; width:38px; height:38px; border-radius:9px;
+  border:3px solid var(--linija); display:grid; place-items:center;
+  font-size:1.4rem; font-weight:800; color:transparent;
+}
+.vrsta[aria-pressed="true"]{border-color:var(--rijeseno); background:var(--rijeseno-t)}
+.vrsta[aria-pressed="true"] .kvacica{
+  border-color:var(--rijeseno); background:var(--rijeseno); color:#fff}
+.vrsta b{display:block; font-size:1.2rem; font-weight:800}
+.vrsta small{display:block; font-size:.9rem; color:var(--tinta-tiha); font-weight:400}
+.vrsta[aria-pressed="true"] small{color:var(--tinta)}
 .znak{font-family:Bitter,Georgia,serif; font-weight:800; font-size:2.35rem; line-height:1.1;
   text-wrap:balance; margin:0}
 .znak span{color:var(--naglasak)}
@@ -308,12 +338,22 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
     </div>
   </section>
 
+  <!-- ============ PRVO POKRETANJE: namještanje jednom ============ -->
+  <section class="zaslon" id="zUvod" hidden>
+    <div class="uvod">
+      <p class="korak" id="uvodKorak">1. od 5</p>
+      <h2 class="uvod-pitanje" id="uvodPitanje">Kako da vam čitam?</h2>
+      <div class="uvod-tijelo" id="uvodTijelo"></div>
+      <button class="gumb ogroman gumb--glavni" id="gUvodDalje">DALJE</button>
+    </div>
+  </section>
+
   <!-- ===================== POSTAVKE ===================== -->
   <section class="zaslon" id="zPostavke" hidden>
     <div class="pocetak">
       <h2 class="znak" style="font-size:1.9rem">Postavke</h2>
 
-      <div class="izbori" style="margin-top:1rem">
+      <div class="izbori" id="postavkeSadrzaj" style="margin-top:1rem">
         <div>
           <p class="natpis">Koliko riječi</p>
           <div class="tezina" id="izborTezine">
@@ -351,9 +391,16 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
           <p class="sitna-napomena">Isključeno. Uključi samo ako treba razlikovati Č i Ć.</p>
         </div>
 
+        <div>
+          <p class="natpis">O čemu</p>
+          <div class="vrste" id="izborVrsta"></div>
+        </div>
+
         <div class="red-sitno">
           <button class="tekst-gumb" id="gUcitaj">Učitaj križaljku s računala</button>
           <input type="file" id="datoteka" accept="application/json,.json" hidden>
+          <span aria-hidden="true">·</span>
+          <button class="tekst-gumb" id="gPonoviUvod">Ponovi početno namještanje</button>
         </div>
 
         <button class="gumb ogroman gumb--glavni" id="gGotovoPostavke">GOTOVO</button>
@@ -612,10 +659,61 @@ function zapamtiPotpis(potpis){
 }
 const potpisOd = rijeci => rijeci.slice().sort().join("|");
 
-function napraviKrizaljku(n, minPosjeti = 300){
-  let izvor = RJECNIK.filter(u => u.p >= minPosjeti && u.r.length >= 3 && u.r.length <= 11);
-  if (izvor.length < n * 2) izvor = RJECNIK.filter(u => u.r.length >= 3 && u.r.length <= 11);
+/* ---- vrste križaljki ----
+   Pojedine kategorije su pretanke da bi same nosile križaljku (Biljke imaju
+   samo 2 poznata pojma), pa ih grupiramo u teme koje se mogu birati. */
+const VRSTE = [
+  { id:"hrvatska", ime:"Hrvatska", opis:"gradovi, rijeke, planine, jezera, otoci",
+    k:["Gradovi u Hrvatskoj","Rijeke u Hrvatskoj","Planine u Hrvatskoj",
+       "Jezera u Hrvatskoj","Hrvatski otoci"] },
+  { id:"priroda", ime:"Priroda", opis:"voće, povrće, biljke, gljive",
+    k:["Voće","Povrće","Biljke","Gljive"] },
+  { id:"znanost", ime:"Znanost", opis:"kemijski elementi i minerali",
+    k:["Kemijski elementi","Minerali"] },
+  { id:"zanimanja", ime:"Zanimanja", opis:"čime se ljudi bave",
+    k:["Zanimanja"] },
+];
+const KLJUC_VRSTE = "didina-krizaljka-vrste";
 
+function ucitajVrste(){
+  try {
+    const s = JSON.parse(localStorage.getItem(KLJUC_VRSTE) || "null");
+    if (Array.isArray(s) && s.length) return new Set(s);
+  } catch (e) {}
+  return new Set(VRSTE.map(v => v.id));        // zadano: sve
+}
+let odabraneVrste = ucitajVrste();
+
+function spremiVrste(){
+  try { localStorage.setItem(KLJUC_VRSTE, JSON.stringify([...odabraneVrste])); }
+  catch (e) {}
+}
+
+function kategorijeOdabrane(){
+  const k = new Set();
+  VRSTE.filter(v => odabraneVrste.has(v.id)).forEach(v => v.k.forEach(x => k.add(x)));
+  return k;
+}
+
+/* Prag poznatosti spuštamo dok ne skupimo dovoljno RAZLIČITIH opisa.
+   Bez toga bi uska tema ("Znanost") jednostavno ostala bez riječi. */
+function izvorZaKrizaljku(n){
+  const kategorije = kategorijeOdabrane();
+  const uTemi = RJECNIK.filter(u =>
+    u.r.length >= 3 && u.r.length <= 11 &&
+    (kategorije.size === 0 || kategorije.has(u.k)));
+
+  for (const prag of [300, 150, 60, 20, 0]){
+    const izbor = uTemi.filter(u => u.p >= prag);
+    if (new Set(izbor.map(u => u.o)).size >= n) return izbor;
+  }
+  // tema je pretanka - vrati se na cijeli rječnik da uopće bude križaljke
+  const sve = RJECNIK.filter(u => u.r.length >= 3 && u.r.length <= 11);
+  return new Set(uTemi.map(u => u.o)).size >= n ? uTemi : sve;
+}
+
+function napraviKrizaljku(n){
+  const izvor = izvorZaKrizaljku(n);
   const povijest = new Set(ucitajPovijest());
   let najbolja = null, najveceP = -1;
   for (let pokusaj = 0; pokusaj < 24; pokusaj++){
@@ -878,9 +976,10 @@ function slusaj(){
 }
 
 /* ============ crtanje ============ */
+const SVI_ZASLONI = ["zUvod", "zPocetak", "zPostavke", "zRjesavanje", "zKraj"];
 function prikaziZaslon(id){
-  ["zPocetak", "zPostavke", "zRjesavanje", "zKraj"]
-    .forEach(z => $("#" + z).hidden = (z !== id));
+  if (!SVI_ZASLONI.includes(id)) throw new Error("nepoznat zaslon: " + id);
+  SVI_ZASLONI.forEach(z => $("#" + z).hidden = (z !== id));
 }
 
 function osvjeziNapredak(){
@@ -1322,12 +1421,142 @@ if ("serviceWorker" in navigator && location.protocol === "https:"){
   });
 }
 
+/* ============ izbor vrsta (koristi se i u uvodu i u postavkama) ============ */
+function nacrtajVrste(spremnik){
+  spremnik.innerHTML = "";
+  VRSTE.forEach(v => {
+    const b = document.createElement("button");
+    b.className = "vrsta";
+    b.type = "button";
+    b.setAttribute("aria-pressed", String(odabraneVrste.has(v.id)));
+    b.innerHTML = '<span class="kvacica" aria-hidden="true">✓</span>' +
+                  '<span><b></b><small></small></span>';
+    b.querySelector("b").textContent = v.ime;
+    b.querySelector("small").textContent = v.opis;
+    b.addEventListener("click", () => {
+      if (odabraneVrste.has(v.id)) odabraneVrste.delete(v.id);
+      else odabraneVrste.add(v.id);
+      if (!odabraneVrste.size) odabraneVrste.add(v.id);   // barem jedna
+      spremiVrste();
+      nacrtajVrste(spremnik);
+    });
+    spremnik.appendChild(b);
+  });
+}
+
+/* ============ prvo pokretanje ============ */
+const KLJUC_UVOD = "didina-krizaljka-uvod";
+const uvodGotov = () => {
+  try { return localStorage.getItem(KLJUC_UVOD) === "gotovo"; } catch (e) { return false; }
+};
+
+const KORACI = [
+  { pitanje: "Kako da vam čitam?", crtaj: t => {
+      if (!sviGlasovi.length){
+        t.innerHTML = '<p class="sitna-napomena">Ovaj preglednik nema glasova. ' +
+                      'Križaljka će raditi, ali bez čitanja naglas.</p>';
+        return;
+      }
+      t.appendChild($("#redGlas"));
+      $("#redGlas").hidden = false;
+      $("#redGlas").querySelectorAll(".natpis, #gSlova, .sitna-napomena, #izborBrzine")
+        .forEach(x => x.hidden = true);          // u ovom koraku samo glas
+    }},
+  { pitanje: "Koliko brzo?", crtaj: t => {
+      t.appendChild($("#izborBrzine"));
+      $("#izborBrzine").hidden = false;
+    }},
+  { pitanje: "Koje boje vam lakše padaju?", crtaj: t => {
+      t.appendChild($("#izborTeme"));
+      $("#izborTeme").hidden = false;
+    }},
+  { pitanje: "O čemu želite križaljke?", crtaj: t => {
+      const d = document.createElement("div");
+      d.className = "vrste";
+      t.appendChild(d);
+      nacrtajVrste(d);
+    }},
+  { pitanje: "Koliko riječi u križaljci?", crtaj: t => {
+      t.appendChild($("#izborTezine"));
+      $("#izborTezine").hidden = false;
+    }},
+];
+
+let uvodIndeks = 0;
+function crtajUvod(){
+  // Kontrole posuđujemo iz Postavki, pa ih moramo vratiti PRIJE brisanja
+  // tijela - inače ih innerHTML="" trajno uništi na sljedećem koraku.
+  vratiPostavkeNaMjesto();
+
+  const korak = KORACI[uvodIndeks];
+  $("#uvodKorak").textContent = (uvodIndeks + 1) + ". od " + KORACI.length;
+  $("#uvodPitanje").textContent = korak.pitanje;
+  $("#uvodTijelo").innerHTML = "";
+  korak.crtaj($("#uvodTijelo"));
+  $("#gUvodDalje").textContent =
+    uvodIndeks === KORACI.length - 1 ? "POČNI RJEŠAVATI" : "DALJE";
+}
+
+function pokreniUvod(){
+  uvodIndeks = 0;
+  prikaziZaslon("zUvod");
+  crtajUvod();
+}
+
+$("#gUvodDalje").addEventListener("click", () => {
+  if (uvodIndeks < KORACI.length - 1){ uvodIndeks++; crtajUvod(); return; }
+  try { localStorage.setItem(KLJUC_UVOD, "gotovo"); } catch (e) {}
+  vratiPostavkeNaMjesto();
+  novaKrizaljka();                       // ravno u križaljku
+});
+
+/* Kontrole iz postavki posuđujemo uvodu; nakon uvoda ih vraćamo natrag. */
+function vratiPostavkeNaMjesto(){
+  const dom = $("#postavkeSadrzaj");
+  ["izborTezine", "izborTeme", "izborBrzine", "redGlas"].forEach(id => {
+    const el = $("#" + id);
+    if (el && el.parentElement !== dom) dom.appendChild(el);
+  });
+  $("#redGlas").querySelectorAll(".natpis, #gSlova, .sitna-napomena, #izborBrzine")
+    .forEach(x => x.hidden = false);
+  $("#redGlas").hidden = !sviGlasovi.length;
+  oznaciSlova();
+}
+
+$("#gPonoviUvod").addEventListener("click", () => {
+  try { localStorage.removeItem(KLJUC_UVOD); } catch (e) {}
+  pokreniUvod();
+});
+
 napraviTipkovnicu();
+nacrtajVrste($("#izborVrsta"));
 osvjeziPocetak();
 
-const izLinkaKrizaljka = izLinka();
-if (izLinkaKrizaljka){
-  pokreni(izLinkaKrizaljka);
-  history.replaceState(null, "", location.pathname + location.search);
+/* ============ kamo krenuti pri pokretanju ============
+   Prvi put: namještanje. Poslije: ravno u križaljku - nedovršenu ako je ima,
+   inače novu. Početni zaslon vidi samo ako sam izađe iz križaljke. */
+function pokreniAplikaciju(){
+  if (izLinkaKrizaljka){
+    pokreni(izLinkaKrizaljka);
+    history.replaceState(null, "", location.pathname + location.search);
+    return;
+  }
+  if (!uvodGotov()){ pokreniUvod(); return; }
+
+  const s = ucitajSpremljeno();
+  if (s && s.K && s.K.pojmovi){
+    const svePojmove = s.K.pojmovi.length;
+    const gotovih = s.K.pojmovi.filter(p => {
+      const cel = [];
+      for (let i = 0; i < p.rijec.length; i++)
+        cel.push(p.smjer === "H" ? [p.r, p.c + i] : [p.r + i, p.c]);
+      return cel.every(([r, c], i) => (s.K.upisano[k(r, c)] || "") === p.rijec[i]);
+    }).length;
+    if (gotovih < svePojmove){ pokreni(s.K, s.iPojam); return; }
+  }
+  novaKrizaljka();
 }
+
+const izLinkaKrizaljka = izLinka();
+pokreniAplikaciju();
 </script>
