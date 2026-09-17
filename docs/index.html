@@ -1,4 +1,5 @@
 <title>Didina križaljka</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B5FB0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
@@ -84,17 +85,22 @@
 
 *{box-sizing:border-box}
 html,body{height:100%}
+/* iOS: 100vh ukljucuje i Safarijevu traku, pa dno aplikacije zavrsi ispod nje.
+   dvh prati stvarnu vidljivu visinu. */
+@supports (height:100dvh){ html,body{height:100dvh} }
 body{
   margin:0; background:var(--papir); color:var(--tinta);
   font-family:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
   font-size:19px; line-height:1.45;
   -webkit-text-size-adjust:100%;
 }
-button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent}
+button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation}
 :focus-visible{outline:4px solid var(--naglasak); outline-offset:3px}
 @media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
 
-#app{max-width:560px; margin:0 auto; min-height:100%; display:flex; flex-direction:column}
+#app{max-width:560px; margin:0 auto; min-height:100%; display:flex; flex-direction:column;
+  padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right)}
 .zaslon{flex:1; display:flex; flex-direction:column; min-height:0}
 [hidden]{display:none!important}
 
@@ -269,8 +275,12 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
 }
 .sloj-vrh{display:flex; align-items:center; justify-content:space-between; gap:.75rem;
   padding:.8rem .9rem; border-bottom:2px solid var(--linija)}
-.sloj-tijelo{flex:1; overflow:auto; padding:1rem .6rem 2rem; display:grid; place-items:start center}
-.mreza{display:grid; gap:2px}
+/* display:grid + place-items:center odsijeca lijevi rub kad je mreza sira
+   od ekrana i do njega se vise ne moze doci. inline-grid se pomice kako
+   treba u oba smjera. */
+.sloj-tijelo{flex:1; overflow:auto; -webkit-overflow-scrolling:touch;
+  padding:1rem .6rem 2rem; text-align:center}
+.mreza{display:inline-grid; gap:2px}
 .celija{
   width:var(--mc,26px); height:var(--mc,26px); position:relative;
   background:var(--papir-2); border:1.5px solid var(--tinta); border-radius:3px;
@@ -797,14 +807,39 @@ function ocjenaGlasa(g){
   let bod = 0;
   const jezik = (g.lang || "").toLowerCase();
   if (jezik.startsWith("hr")) bod += 100;
-  else if (/^(sr|bs|sh)/.test(jezik)) bod += 60;
-  else if (jezik.startsWith("sl")) bod += 40;
+  else if (/^(sr|bs|sh)/.test(jezik)) bod += 70;
+  else if (jezik.startsWith("sl")) bod += 55;
+  /* iPhone NEMA hrvatski glas - ni srpski ni slovenski. Ima ceski, slovacki
+     i poljski. Prije smo ih odbacivali, ostajali bez glasa i iOS bi hrvatski
+     tekst procitao engleskim glasom - odatle onaj "robotski" dojam. Ovi
+     jezici citaju c kao "ts", j kao "j" i imaju c/s/z s kvacicom, pa im
+     hrvatski lezi puno bolje nego engleskom. */
+  else if (jezik.startsWith("pl")) bod += 45;      // najblizi izgovor od dostupnih
+  else if (/^(cs|sk)/.test(jezik))  bod += 42;
+  else if (/^(uk|ru|bg|mk)/.test(jezik)) bod += 20;
   else return -1;                                  // strani jezik ne dolazi u obzir
   const ime = (g.name || "").toLowerCase();
-  if (/neural|enhanced|premium|natural|wavenet/.test(ime)) bod += 30;
-  if (/google/.test(ime)) bod += 15;               // Googleovi su na Androidu najmekši
-  if (/compact|espeak|pico/.test(ime)) bod -= 25;  // stari, oštri sintetizatori
+  if (/neural|enhanced|premium|natural|wavenet|siri/.test(ime)) bod += 30;
+  if (/google/.test(ime)) bod += 15;               // Googleovi su na Androidu najmeksi
+  if (/compact|espeak|pico/.test(ime)) bod -= 25;  // stari, ostri sintetizatori
   return bod;
+}
+
+/* Kad glas nije hrvatski/srpski, slova c i d s kvacicom mu nista ne znace i
+   na njima se izgovor lomi. Prepisemo ih u ono sto taj jezik zna izgovoriti.
+   Tekst na ekranu ostaje netaknut - mijenja se samo ono sto ide u zvucnik. */
+const PRIJEPIS = {
+  pl: [[/č/g,"cz"],[/Č/g,"Cz"],[/š/g,"sz"],[/Š/g,"Sz"],
+       [/ž/g,"ż"],[/Ž/g,"Ż"],[/đ/g,"dż"],[/Đ/g,"Dż"]],
+  cs: [[/ć/g,"č"],[/Ć/g,"Č"],[/đ/g,"dž"],[/Đ/g,"Dž"]],
+  sk: [[/ć/g,"č"],[/Ć/g,"Č"],[/đ/g,"dž"],[/Đ/g,"Dž"]],
+  sl: [[/ć/g,"č"],[/Ć/g,"Č"],[/đ/g,"dž"],[/Đ/g,"Dž"]]
+};
+function zaGlas(tekst){
+  const jezik = (glasHR && glasHR.lang || "hr").slice(0,2).toLowerCase();
+  const pravila = PRIJEPIS[jezik];
+  if (!pravila) return tekst;
+  return pravila.reduce((t, [uzorak, zamjena]) => t.replace(uzorak, zamjena), tekst);
 }
 
 function nadiGlas(){
@@ -816,10 +851,22 @@ function nadiGlas(){
   try { spremljen = localStorage.getItem(KLJUC_GLAS); } catch (e) {}
   glasHR = (spremljen && sviGlasovi.find(g => g.name === spremljen)) || sviGlasovi[0] || null;
   popuniIzborGlasa();
+  return sviGlasovi.length > 0;
+}
+
+/* Na iPhoneu getVoices() prvih nekoliko stotina milisekundi vraca prazno, a
+   onvoiceschanged zna i ne planuti. Zato jos i pitamo nekoliko puta, pa
+   odustanemo - inace prvo citanje ostane bez glasa ili uzme krivi. */
+function cekajGlasove(){
+  let pokusaja = 0;
+  const sat = setInterval(() => {
+    if (nadiGlas() || ++pokusaja > 20) clearInterval(sat);
+  }, 250);
 }
 if ("speechSynthesis" in window){
   nadiGlas();
   speechSynthesis.onvoiceschanged = nadiGlas;
+  cekajGlasove();
 }
 
 function popuniIzborGlasa(){
@@ -863,22 +910,102 @@ function otkljucajGovor(){
 document.addEventListener("pointerdown", otkljucajGovor, { once: true });
 document.addEventListener("touchstart", otkljucajGovor, { once: true });
 
+const JE_IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
+let govorSat = null;   // budi sintetizator ako zapne
+let govorId  = 0;      // svaki novi zahtjev ponisti prethodni lanac komada
+
+function stanjeGumba(govori){
+  const gumb = $("#gCuj");
+  if (gumb) gumb.dataset.govori = govori ? "da" : "ne";
+}
+
+function prekiniGovor(){
+  govorId++;
+  if (govorSat){ clearInterval(govorSat); govorSat = null; }
+  try { speechSynthesis.cancel(); } catch (e) {}
+  stanjeGumba(false);
+}
+
+/* Duga recenica je tri nevolje odjednom: Chrome je odreze na petnaestak
+   sekundi, iOS na njoj zna zapeti i zamuknuti, a didi je ionako lakse
+   pratiti kratke komade. Zato je razlomimo po recenicama i zarezima. */
+function nakomadaj(tekst, najvise){
+  const komadi = [];
+  let ostatak = String(tekst).trim();
+  while (ostatak.length > najvise){
+    let rez = -1;
+    for (const znak of [". ", "! ", "? ", "; ", ", ", " "]){
+      const kandidat = ostatak.lastIndexOf(znak, najvise);
+      if (kandidat > najvise * 0.4){ rez = kandidat + znak.length; break; }
+    }
+    if (rez < 0) rez = najvise;              // jedna duga rijec bez razmaka
+    komadi.push(ostatak.slice(0, rez).trim());
+    ostatak = ostatak.slice(rez).trim();
+  }
+  if (ostatak) komadi.push(ostatak);
+  return komadi;
+}
+
 function izgovori(tekst, opcije){
   if (!("speechSynthesis" in window)) return false;
-  speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(tekst);
-  if (glasHR) u.voice = glasHR;
-  u.lang = glasHR ? glasHR.lang : "hr-HR";
-  // faktor: kratke poruke (jedno slovo) smiju biti mrvicu brže od rečenice
-  u.rate = Math.max(0.4, Math.min(1.3, brzinaGovora * ((opcije && opcije.faktor) || 1)));
-  u.pitch = (opcije && opcije.visina) || 1.06;  // mrvicu više = mekše, manje robotski
-  u.volume = 1;
-  const gumb = $("#gCuj");
-  u.onstart = () => gumb && (gumb.dataset.govori = "da");
-  u.onend = u.onerror = () => gumb && (gumb.dataset.govori = "ne");
-  speechSynthesis.speak(u);
+  /* Stanka prije pocetka treba SAMO kad gasimo govor koji jos traje - tada
+     Safari zna pojesti novu izjavu. Ako nista ne svira, krecemo odmah,
+     inace bi potvrda svakog slova kasnila bez razloga. */
+  const bioZauzet = !!(speechSynthesis.speaking || speechSynthesis.pending);
+  prekiniGovor();
+  const mojId  = govorId;
+  // faktor: kratke poruke (jedno slovo) smiju biti mrvicu brze od recenice
+  const brzina = Math.max(0.4, Math.min(1.3, brzinaGovora * ((opcije && opcije.faktor) || 1)));
+  const visina = (opcije && opcije.visina) || 1.06;  // mrvicu vise = mekse, manje robotski
+  const komadi = nakomadaj(zaGlas(tekst), 140);
+
+  function pusti(i){
+    if (mojId !== govorId) return;                   // u meduvremenu je stigao novi
+    if (i >= komadi.length){
+      if (govorSat){ clearInterval(govorSat); govorSat = null; }
+      stanjeGumba(false);
+      return;
+    }
+    const u = new SpeechSynthesisUtterance(komadi[i]);
+    if (glasHR) u.voice = glasHR;
+    u.lang = glasHR ? glasHR.lang : "hr-HR";
+    u.rate = brzina;
+    u.pitch = visina;
+    u.volume = 1;
+    u.onstart = () => { if (mojId === govorId) stanjeGumba(true); };
+    u.onend   = () => pusti(i + 1);
+    u.onerror = () => pusti(i + 1);                  // jedan komad padne, ostali idu dalje
+    speechSynthesis.speak(u);
+  }
+
+  /* cancel() pa odmah speak(): Safari zna pojesti novu izjavu jer jos cisti
+     staru, i onda gumb svijetli a zvuka nema. Kratka stanka to rijesi. */
+  function kreni(){
+    if (mojId !== govorId) return;
+    try { if (speechSynthesis.paused) speechSynthesis.resume(); } catch (e) {}
+    /* Ako je sintetizator ostao zaglavljen u pauzi (iOS to napravi kad
+       aplikacija ode u pozadinu ili se ekran zakljuca), sam se ne vrati. */
+    govorSat = setInterval(() => {
+      if (!speechSynthesis.speaking && !speechSynthesis.pending){
+        clearInterval(govorSat); govorSat = null; return;
+      }
+      try { if (speechSynthesis.paused) speechSynthesis.resume(); } catch (e) {}
+    }, 4000);
+    pusti(0);
+  }
+
+  if (bioZauzet) setTimeout(kreni, JE_IOS ? 90 : 40);
+  else kreni();
   return true;
 }
+
+/* Povratak u aplikaciju nakon zakljucanog ekrana: iOS ostavi govor u pauzi. */
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) prekiniGovor();
+  else { try { if (speechSynthesis.paused) speechSynthesis.resume(); } catch (e) {} }
+});
 const recenicaPojma = p =>
   `${p.broj}. ${p.smjer === "H" ? "vodoravno" : "okomito"}. ${p.opis}. ${p.rijec.length} slova.`;
 
@@ -936,7 +1063,7 @@ function slusaj(){
   }
   if (slusam){ slusac && slusac.stop(); return; }
 
-  speechSynthesis && speechSynthesis.cancel();   // ne slušaj sam sebe
+  prekiniGovor();                                // ne slušaj sam sebe
   const p = K.pojmovi[iPojam];
 
   slusac = new MOTOR_SLUHA();
@@ -1027,8 +1154,10 @@ function crtajPojam(){
 
   /* Duge riječi PRELAMAMO u više redova umjesto da smanjujemo polja.
      Za slab vid je bolje 9 slova u dva reda nego u jednom sitnom. */
-  const sirina = Math.min(polja.clientWidth || window.innerWidth - 30, 520);
-  const RAZMAK = 7, ZELJENA = 78;
+  const sirina = Math.min(polja.clientWidth || window.innerWidth - 30, 560);
+  /* ZELJENA je strop, ne cilj - na velikom mobitelu slovo smije narasti
+     do 96px. Prije je bilo 78 i polja su ostajala sitna bez razloga. */
+  const RAZMAK = 7, ZELJENA = 96;
   /* Biramo raspored s NAJVEĆIM poljima, a ne prvi koji prođe. Inače bi
      riječ od 6 slova u jednom redu (54px) ispala sitnija od one od 9 slova
      u dva reda (66px). Najviše 2 reda - u tri se riječ teško prati. */
@@ -1066,8 +1195,13 @@ function crtajMrezu(){
   const m = $("#mreza");
   m.innerHTML = "";
   m.style.gridTemplateColumns = `repeat(${K.stupci}, var(--mc))`;
-  const raspoloziv = Math.min(window.innerWidth - 28, 520);
-  m.style.setProperty("--mc", Math.max(16, Math.floor((raspoloziv - K.stupci * 2) / K.stupci)) + "px");
+  /* Pregled cijele krizaljke. Prije smo stiskali celije do 16px da mreza
+     stane u sirinu - to je za oko s mrenom neciljivo. Sad drzimo donju
+     granicu od 30px i, ako ne stane, mreza se pomice u stranu. */
+  const okvir = m.parentElement ? m.parentElement.clientWidth : 0;
+  const raspoloziv = Math.min(okvir || window.innerWidth - 28, 620);
+  const stane = Math.floor((raspoloziv - K.stupci * 2) / K.stupci);
+  m.style.setProperty("--mc", Math.max(30, stane) + "px");
 
   const sadCelije = new Set(celijePojma(K.pojmovi[iPojam]).map(([r, c]) => k(r, c)));
   const rijeseneCelije = new Set();
