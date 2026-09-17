@@ -7,7 +7,7 @@
  * Kad objaviš novu verziju, promijeni VERZIJA - time se stara predmemorija
  * briše i didin mobitel povuče novu aplikaciju.
  */
-const VERZIJA = "didina-krizaljka-v1";
+const VERZIJA = "didina-krizaljka-v2";
 const NASE = [
   "./",
   "./index.html",
