@@ -112,6 +112,19 @@ def main():
     io.open(IZLAZ, "w", encoding="utf-8").write(
         predlozak.replace(OZNAKA, json.dumps(sazeto, ensure_ascii=False)))
 
+    # GitHub Pages sluzi samo iz korijena ili iz docs/, pa sve sto se
+    # objavljuje kopiramo tamo. app/ ostaje razvojna mapa.
+    docs = os.path.join(KORIJEN, "docs")
+    if os.path.isdir(docs):
+        import shutil
+        shutil.copyfile(IZLAZ, os.path.join(docs, "index.html"))
+        for pomocna in ("manifest.json", "sw.js", "ikona-192.png",
+                        "ikona-512.png", "ikona-maskable.png"):
+            izvor = os.path.join(KORIJEN, "app", pomocna)
+            if os.path.exists(izvor):
+                shutil.copyfile(izvor, os.path.join(docs, pomocna))
+        print("objava:    docs/ osvjezen")
+
     vel = os.path.getsize(IZLAZ) / 1024
     print("ugradeno:  " + str(len(sazeto)) + " rijeci")
     if prije is not None and prije != len(sazeto):
