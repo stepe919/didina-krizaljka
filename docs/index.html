@@ -253,20 +253,27 @@ button{font:inherit; color:inherit; cursor:pointer; -webkit-tap-highlight-color:
 
 /* ---------- tipkovnica ---------- */
 .tipkovnica{
-  margin-top:auto; padding:.55rem .5rem calc(.55rem + env(safe-area-inset-bottom));
+  margin-top:auto; padding:.45rem .4rem calc(.45rem + env(safe-area-inset-bottom));
   background:var(--papir-2); border-top:2px solid var(--linija);
-  display:grid; grid-template-columns:repeat(6,1fr); gap:5px;
+  display:grid; grid-template-columns:repeat(6,1fr); gap:6px;
 }
+/* 30 slova + Briši staje u 6 stupaca i 6 redova - to je najbolji raspored
+   koji postoji, pa tipka ne može biti šira. Ono što je smetalo nije bila
+   veličina tipke nego slovo u njoj: 20px u tipki od 58px, tipka je bila
+   skoro prazna. Sad slovo raste sa širinom ekrana i puni je. */
 .tipka{
-  min-height:56px; border:2px solid var(--linija); border-radius:10px;
-  background:var(--papir); font-weight:700; font-size:1.3rem;
+  min-height:clamp(56px, 7.4vh, 74px);
+  border:2px solid var(--linija); border-radius:10px;
+  background:var(--papir); font-weight:700;
+  font-size:clamp(1.6rem, 7.4vw, 2.4rem);
   font-family:Bitter,Georgia,serif;
+  display:grid; place-items:center; padding:0; line-height:1;
 }
 .tipka:active{background:var(--naglasak); color:var(--naglasak-tekst); border-color:var(--naglasak)}
-.tipka--sirok{grid-column:1 / -1; font-size:1.05rem;
+.tipka--sirok{grid-column:1 / -1; font-size:clamp(1.1rem, 4.6vw, 1.4rem);
   font-family:"Atkinson Hyperlegible",sans-serif}
 /* DŽ/LJ/NJ su dva znaka - malo manji font da stanu u istu tipku */
-.tipka--digraf{font-size:1.05rem; letter-spacing:.02em}
+.tipka--digraf{font-size:clamp(1.15rem, 5vw, 1.6rem); letter-spacing:.01em}
 
 /* ---------- sloj s cijelom mrežom ---------- */
 .sloj{

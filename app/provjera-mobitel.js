@@ -22,7 +22,21 @@ provjeri("stvarna visina na iOS-u (100dvh)", /height:100dvh/.test(html));
 provjeri("zarez oko ruba ekrana sa strane", /safe-area-inset-left/.test(html));
 provjeri("dvostruki dodir ne zumira", /touch-action:manipulation/.test(html));
 
-console.log("\n=== 2. mreza se moze pomicati umjesto da se stisne ===");
+console.log("");
+console.log("=== 2. tipkovnica ===");
+// Ono sto je smetalo nije bila velicina tipke nego slovo u njoj:
+// 20px u tipki od 58px, tipka je bila skoro prazna.
+const tipkaCss = html.match(/\.tipka\{[^}]+\}/);
+provjeri("slovo na tipki raste sa sirinom ekrana",
+  !!tipkaCss && /font-size:clamp\(1\.6rem, 7\.4vw/.test(tipkaCss[0]), tipkaCss && tipkaCss[0]);
+provjeri("tipka je visa na visem ekranu",
+  !!tipkaCss && /min-height:clamp\(56px/.test(tipkaCss[0]));
+provjeri("slovo je centrirano u tipki",
+  !!tipkaCss && /place-items:center/.test(tipkaCss[0]));
+provjeri("DZ, LJ i NJ i dalje imaju manji font da stanu",
+  /\.tipka--digraf\{font-size:clamp\(1\.15rem/.test(html));
+
+console.log("\n=== 3. mreza se moze pomicati umjesto da se stisne ===");
 provjeri("mreza je inline-grid (pomicanje u oba smjera)", /\.mreza\{display:inline-grid/.test(html));
 provjeri("celija ne pada ispod 30px", /Math\.max\(30, stane\)/.test(html));
 
@@ -31,7 +45,7 @@ const { window } = dom;
 Object.defineProperty(window, "innerWidth", { value: 390, configurable: true });
 
 setTimeout(() => {
-  console.log("\n=== 3. dugi opis se lomi na komade ===");
+  console.log("\n=== 4. dugi opis se lomi na komade ===");
   const nakomadaj = window.nakomadaj || window.eval("nakomadaj");
   const dug = "Grad u Hrvatskoj koji se nalazi sedamdesetak kilometara sjeveroistocno od Zagreba, " +
               "a poznat je po svojoj bogatoj povijesti, sajmovima i starim gradskim zidinama koje " +
@@ -45,7 +59,7 @@ setTimeout(() => {
   const kratak = "Tocno.";
   provjeri("kratka poruka ostaje u jednom komadu", nakomadaj(kratak, 140).length === 1);
 
-  console.log("\n=== 4. glas: iPhone nema hrvatski, mora uzeti najblizi ===");
+  console.log("\n=== 5. glas: iPhone nema hrvatski, mora uzeti najblizi ===");
   const ocjena = window.eval("ocjenaGlasa");
   const hr = ocjena({ lang: "hr-HR", name: "Croatian" });
   const pl = ocjena({ lang: "pl-PL", name: "Zosia" });
@@ -56,7 +70,7 @@ setTimeout(() => {
   provjeri("ceski se prihvaca (iPhone ga ima)", cs > 0, "cs=" + cs);
   provjeri("engleski se i dalje odbija", en < 0, "en=" + en);
 
-  console.log("\n=== 5. glas: c i d s kvacicom za strani glas ===");
+  console.log("\n=== 6. glas: c i d s kvacicom za strani glas ===");
   const zaGlas = window.eval("zaGlas");
   window.eval('glasHR = { lang:"pl-PL", name:"Zosia" }');
   const pol = zaGlas("Kopriv\u0144ica \u0107up \u0111on \u010dokolada \u0161e\u0107er");
@@ -70,7 +84,7 @@ setTimeout(() => {
   const hrv = "\u0107up \u0111on \u010dokolada";
   provjeri("hrvatskom glasu se tekst NE dira", zaGlas(hrv) === hrv, zaGlas(hrv));
 
-  console.log("\n=== 6. govor ne pada i ne zapinje ===");
+  console.log("\n=== 7. govor ne pada i ne zapinje ===");
   const izgovoreno = [];
   let otkazano = 0;
   window.eval(`
